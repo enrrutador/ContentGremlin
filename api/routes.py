@@ -10,6 +10,8 @@ from core.mode_manager import ModeManager
 from core.config import load_user_profile, save_user_profile, settings
 from core.safety import safety_report, can_upload
 from modules.analyzer import analyze_channel
+from modules.idea_generator import generate_ideas
+from modules.script_writer import write_script
 
 router = APIRouter()
 
@@ -28,6 +30,17 @@ class ProfileUpdate(BaseModel):
     language: Optional[str] = None
     llm_provider: Optional[str] = None
     autonomous_upload_allowed: Optional[bool] = None
+
+
+class GenerateIdeasRequest(BaseModel):
+    analysis_report: dict[str, Any]
+    count: int = 8
+    niche: Optional[str] = None
+
+
+class WriteScriptRequest(BaseModel):
+    idea: dict[str, Any]
+    language: Optional[str] = None
 
 
 @router.get("/status")
@@ -110,13 +123,34 @@ async def api_analyze_channel(req: AnalyzeRequest):
 
 
 @router.post("/generate_ideas")
-async def generate_ideas_placeholder(payload: dict[str, Any] = None):
-    return {
-        "success": True,
-        "message": "Idea generation module is under construction. Analyzer is ready.",
-        "ideas": [],
-        "requires_approval": ModeManager.requires_approval("ideas"),
-    }
+async def api_generate_ideas(req: GenerateIdeasRequest):
+    try:
+        ideas = await generate_ideas(
+            analysis_report=req.analysis_report,
+            count=req.count,
+            niche=req.niche,
+        )
+        return {
+            "success": True,
+            "ideas": ideas,
+            "count": len(ideas),
+            "requires_approval": ModeManager.requires_approval("ideas"),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/write_script")
+async def api_write_script(req: WriteScriptRequest):
+    try:
+        script = await write_script(idea=req.idea, language=req.language)
+        return {
+            "success": True,
+            "script": script,
+            "requires_approval": ModeManager.requires_approval("script"),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/safety")
