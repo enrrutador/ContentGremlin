@@ -1,0 +1,37 @@
+# Environment & secrets
+.env
+credentials/*.json
+credentials/*.pickle
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+
+# Data & local state
+data/user_profile.json
+data/*.db
+data/history/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.egg-info/
