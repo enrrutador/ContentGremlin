@@ -1,0 +1,1 @@
+# ContentGremlin core package
