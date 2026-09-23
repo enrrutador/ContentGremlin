@@ -14,13 +14,15 @@ from modules.idea_generator import generate_ideas
 from modules.script_writer import write_script
 from modules.library import add_item, list_items, get_item, delete_item
 from modules.video_creator import create_video_from_script_and_audio
+from modules.subtitles import generate_subtitles
+from modules.metadata import generate_metadata
+from modules.thumbnail import create_thumbnail
+from modules.uploader import upload_video, is_youtube_configured
 from providers.tts import TTSProvider
 from pathlib import Path
 
 router = APIRouter()
 
-
-# ---------- Models ----------
 
 class ModeRequest(BaseModel):
     mode: Literal["supervised", "autonomous"]
@@ -49,8 +51,6 @@ class WriteScriptRequest(BaseModel):
     language: Optional[str] = None
 
 
-# ---------- Status & Mode ----------
-
 @router.get("/status")
 async def get_status():
     profile = load_user_profile()
@@ -59,7 +59,7 @@ async def get_status():
         "mode": ModeManager.current(),
         "niche": profile.get("niche", ""),
         "llm_provider": profile.get("llm_provider", "not set"),
-        "youtube_configured": False,
+        "youtube_configured": is_youtube_configured(),
         "safety": safety_report(),
         "version": "0.1.0",
     }
@@ -68,19 +68,13 @@ async def get_status():
 @router.post("/set_mode")
 async def set_mode(req: ModeRequest):
     profile = ModeManager.set(req.mode)
-    return {
-        "success": True,
-        "mode": profile["mode"],
-        "message": f"Mode changed to {profile['mode']}",
-    }
+    return {"success": True, "mode": profile["mode"], "message": f"Mode changed to {profile['mode']}"}
 
 
 @router.get("/mode")
 async def get_mode():
     return {"mode": ModeManager.current()}
 
-
-# ---------- Profile & Config ----------
 
 @router.get("/profile")
 async def get_profile():
@@ -106,7 +100,6 @@ async def update_profile(update: ProfileUpdate):
 
 @router.get("/config/public")
 async def get_public_config():
-    """Safe config values that can be shown in the UI."""
     return {
         "host": settings.host,
         "port": settings.port,
@@ -120,17 +113,11 @@ async def get_public_config():
     }
 
 
-# ---------- Core Pipeline ----------
-
 @router.post("/analyze_channel")
 async def api_analyze_channel(req: AnalyzeRequest):
     try:
         report = analyze_channel(req.channel_url)
-        return {
-            "success": True,
-            "report": report,
-            "requires_approval": ModeManager.requires_approval("analysis"),
-        }
+        return {"success": True, "report": report, "requires_approval": ModeManager.requires_approval("analysis")}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -138,23 +125,10 @@ async def api_analyze_channel(req: AnalyzeRequest):
 @router.post("/generate_ideas")
 async def api_generate_ideas(req: GenerateIdeasRequest):
     try:
-        ideas = await generate_ideas(
-            analysis_report=req.analysis_report,
-            count=req.count,
-            niche=req.niche,
-        )
+        ideas = await generate_ideas(analysis_report=req.analysis_report, count=req.count, niche=req.niche)
         for idea in ideas:
-            add_item(
-                item_type="idea",
-                title=idea.get("title", "Idea"),
-                content=idea,
-            )
-        return {
-            "success": True,
-            "ideas": ideas,
-            "count": len(ideas),
-            "requires_approval": ModeManager.requires_approval("ideas"),
-        }
+            add_item(item_type="idea", title=idea.get("title", "Idea"), content=idea)
+        return {"success": True, "ideas": ideas, "count": len(ideas), "requires_approval": ModeManager.requires_approval("ideas")}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -163,18 +137,8 @@ async def api_generate_ideas(req: GenerateIdeasRequest):
 async def api_write_script(req: WriteScriptRequest):
     try:
         script = await write_script(idea=req.idea, language=req.language)
-        entry = add_item(
-            item_type="script",
-            title=req.idea.get("title", "Script"),
-            content=script,
-            meta={"idea": req.idea},
-        )
-        return {
-            "success": True,
-            "script": script,
-            "library_id": entry["id"],
-            "requires_approval": ModeManager.requires_approval("script"),
-        }
+        entry = add_item(item_type="script", title=req.idea.get("title", "Script"), content=script, meta={"idea": req.idea})
+        return {"success": True, "script": script, "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("script")}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -183,8 +147,6 @@ async def api_write_script(req: WriteScriptRequest):
 async def get_safety():
     return safety_report()
 
-
-# ---------- Voice / Video / Library ----------
 
 class VoiceRequest(BaseModel):
     text: str
@@ -199,7 +161,6 @@ class VideoRequest(BaseModel):
 
 
 class FullPipelineRequest(BaseModel):
-    """Generate voice + simple video from a script in one call."""
     script: str
     title: str
     voice: Optional[str] = None
@@ -210,18 +171,8 @@ async def api_generate_voice(req: VoiceRequest):
     try:
         tts = TTSProvider()
         path = await tts.generate(text=req.text, filename=req.title, voice=req.voice)
-        entry = add_item(
-            item_type="audio",
-            title=req.title,
-            content=str(path),
-            meta={"chars": len(req.text)},
-        )
-        return {
-            "success": True,
-            "audio_path": str(path),
-            "library_id": entry["id"],
-            "requires_approval": ModeManager.requires_approval("voice"),
-        }
+        entry = add_item(item_type="audio", title=req.title, content=str(path), meta={"chars": len(req.text)})
+        return {"success": True, "audio_path": str(path), "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("voice")}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -229,57 +180,21 @@ async def api_generate_voice(req: VoiceRequest):
 @router.post("/create_video")
 async def api_create_video(req: VideoRequest):
     try:
-        result = create_video_from_script_and_audio(
-            script="",
-            audio_path=Path(req.audio_path),
-            title=req.title,
-            output_name=req.output_name,
-        )
-        entry = add_item(
-            item_type="video",
-            title=req.title,
-            content=result["video_path"],
-            meta=result,
-        )
-        return {
-            "success": True,
-            **result,
-            "library_id": entry["id"],
-            "requires_approval": ModeManager.requires_approval("video"),
-        }
+        result = create_video_from_script_and_audio(script="", audio_path=Path(req.audio_path), title=req.title, output_name=req.output_name)
+        entry = add_item(item_type="video", title=req.title, content=result["video_path"], meta=result)
+        return {"success": True, **result, "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("video")}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/full_pipeline")
 async def api_full_pipeline(req: FullPipelineRequest):
-    """Convenience: script → voice → simple video."""
     try:
         tts = TTSProvider()
         audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
-        result = create_video_from_script_and_audio(
-            script=req.script,
-            audio_path=audio_path,
-            title=req.title,
-            output_name=req.title,
-        )
-        entry = add_item(
-            item_type="full_project",
-            title=req.title,
-            content={
-                "script": req.script,
-                "audio_path": str(audio_path),
-                "video_path": result["video_path"],
-            },
-            meta=result,
-        )
-        return {
-            "success": True,
-            "audio_path": str(audio_path),
-            "video_path": result["video_path"],
-            "library_id": entry["id"],
-            "requires_approval": ModeManager.requires_approval("video"),
-        }
+        result = create_video_from_script_and_audio(script=req.script, audio_path=audio_path, title=req.title, output_name=req.title)
+        entry = add_item(item_type="full_project", title=req.title, content={"script": req.script, "audio_path": str(audio_path), "video_path": result["video_path"]}, meta=result)
+        return {"success": True, "audio_path": str(audio_path), "video_path": result["video_path"], "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("video")}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -303,3 +218,112 @@ async def api_delete_library_item(item_id: str):
     if not ok:
         raise HTTPException(status_code=404, detail="Item not found")
     return {"success": True}
+
+
+class SubtitlesRequest(BaseModel):
+    script: str
+    title: Optional[str] = "subtitles"
+
+
+class MetadataRequest(BaseModel):
+    script: str
+    idea: Optional[dict[str, Any]] = None
+    language: Optional[str] = None
+
+
+class ThumbnailRequest(BaseModel):
+    title: str
+    output_name: Optional[str] = None
+
+
+class UploadRequest(BaseModel):
+    video_path: str
+    title: str
+    description: str = ""
+    tags: Optional[list[str]] = None
+    privacy: str = "private"
+    thumbnail_path: Optional[str] = None
+    explicit_approval: bool = False
+
+
+class SuperPipelineRequest(BaseModel):
+    script: str
+    title: str
+    voice: Optional[str] = None
+    burn_subtitles: bool = False
+    idea: Optional[dict[str, Any]] = None
+
+
+@router.post("/generate_subtitles")
+async def api_generate_subtitles(req: SubtitlesRequest):
+    try:
+        result = generate_subtitles(req.script, req.title)
+        entry = add_item(item_type="subtitles", title=req.title, content=result)
+        return {"success": True, **result, "library_id": entry["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/generate_metadata")
+async def api_generate_metadata(req: MetadataRequest):
+    try:
+        meta = await generate_metadata(req.script, idea=req.idea, language=req.language)
+        entry = add_item(item_type="metadata", title=meta.get("title", "meta"), content=meta)
+        return {"success": True, "metadata": meta, "library_id": entry["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/generate_thumbnail")
+async def api_generate_thumbnail(req: ThumbnailRequest):
+    try:
+        path = create_thumbnail(req.title, output_name=req.output_name)
+        entry = add_item(item_type="thumbnail", title=req.title, content=str(path))
+        return {"success": True, "thumbnail_path": str(path), "library_id": entry["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/upload_video")
+async def api_upload_video(req: UploadRequest):
+    try:
+        result = upload_video(
+            video_path=req.video_path, title=req.title, description=req.description,
+            tags=req.tags, privacy=req.privacy, thumbnail_path=req.thumbnail_path,
+            explicit_approval=req.explicit_approval,
+        )
+        add_item(item_type="upload", title=req.title, content=result)
+        return result
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/super_pipeline")
+async def api_super_pipeline(req: SuperPipelineRequest):
+    try:
+        tts = TTSProvider()
+        audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
+        subs = generate_subtitles(req.script, req.title)
+        video_result = create_video_from_script_and_audio(
+            script=req.script, audio_path=audio_path, title=req.title, output_name=req.title,
+            srt_path=Path(subs["srt_path"]), burn_subs=req.burn_subtitles,
+        )
+        meta = await generate_metadata(req.script, idea=req.idea)
+        thumb = create_thumbnail(meta.get("title") or req.title, output_name=req.title)
+        entry = add_item(
+            item_type="full_project", title=meta.get("title") or req.title,
+            content={
+                "script": req.script, "audio_path": str(audio_path),
+                "video_path": video_result["video_path"], "srt_path": subs["srt_path"],
+                "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb), "metadata": meta,
+            },
+        )
+        return {
+            "success": True, "audio_path": str(audio_path), "video_path": video_result["video_path"],
+            "srt_path": subs["srt_path"], "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb),
+            "metadata": meta, "library_id": entry["id"], "youtube_configured": is_youtube_configured(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
