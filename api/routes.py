@@ -12,9 +12,15 @@ from core.safety import safety_report, can_upload
 from modules.analyzer import analyze_channel
 from modules.idea_generator import generate_ideas
 from modules.script_writer import write_script
+from modules.library import add_item, list_items, get_item, delete_item
+from modules.video_creator import create_video_from_script_and_audio
+from providers.tts import TTSProvider
+from pathlib import Path
 
 router = APIRouter()
 
+
+# ---------- Models ----------
 
 class ModeRequest(BaseModel):
     mode: Literal["supervised", "autonomous"]
@@ -42,6 +48,8 @@ class WriteScriptRequest(BaseModel):
     idea: dict[str, Any]
     language: Optional[str] = None
 
+
+# ---------- Status & Mode ----------
 
 @router.get("/status")
 async def get_status():
@@ -72,6 +80,8 @@ async def get_mode():
     return {"mode": ModeManager.current()}
 
 
+# ---------- Profile & Config ----------
+
 @router.get("/profile")
 async def get_profile():
     return load_user_profile()
@@ -96,6 +106,7 @@ async def update_profile(update: ProfileUpdate):
 
 @router.get("/config/public")
 async def get_public_config():
+    """Safe config values that can be shown in the UI."""
     return {
         "host": settings.host,
         "port": settings.port,
@@ -108,6 +119,8 @@ async def get_public_config():
         "elevenlabs_configured": bool(settings.elevenlabs_api_key),
     }
 
+
+# ---------- Core Pipeline ----------
 
 @router.post("/analyze_channel")
 async def api_analyze_channel(req: AnalyzeRequest):
@@ -130,6 +143,12 @@ async def api_generate_ideas(req: GenerateIdeasRequest):
             count=req.count,
             niche=req.niche,
         )
+        for idea in ideas:
+            add_item(
+                item_type="idea",
+                title=idea.get("title", "Idea"),
+                content=idea,
+            )
         return {
             "success": True,
             "ideas": ideas,
@@ -144,9 +163,16 @@ async def api_generate_ideas(req: GenerateIdeasRequest):
 async def api_write_script(req: WriteScriptRequest):
     try:
         script = await write_script(idea=req.idea, language=req.language)
+        entry = add_item(
+            item_type="script",
+            title=req.idea.get("title", "Script"),
+            content=script,
+            meta={"idea": req.idea},
+        )
         return {
             "success": True,
             "script": script,
+            "library_id": entry["id"],
             "requires_approval": ModeManager.requires_approval("script"),
         }
     except Exception as e:
@@ -156,3 +182,124 @@ async def api_write_script(req: WriteScriptRequest):
 @router.get("/safety")
 async def get_safety():
     return safety_report()
+
+
+# ---------- Voice / Video / Library ----------
+
+class VoiceRequest(BaseModel):
+    text: str
+    title: Optional[str] = "narration"
+    voice: Optional[str] = None
+
+
+class VideoRequest(BaseModel):
+    audio_path: str
+    title: str
+    output_name: Optional[str] = None
+
+
+class FullPipelineRequest(BaseModel):
+    """Generate voice + simple video from a script in one call."""
+    script: str
+    title: str
+    voice: Optional[str] = None
+
+
+@router.post("/generate_voice")
+async def api_generate_voice(req: VoiceRequest):
+    try:
+        tts = TTSProvider()
+        path = await tts.generate(text=req.text, filename=req.title, voice=req.voice)
+        entry = add_item(
+            item_type="audio",
+            title=req.title,
+            content=str(path),
+            meta={"chars": len(req.text)},
+        )
+        return {
+            "success": True,
+            "audio_path": str(path),
+            "library_id": entry["id"],
+            "requires_approval": ModeManager.requires_approval("voice"),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/create_video")
+async def api_create_video(req: VideoRequest):
+    try:
+        result = create_video_from_script_and_audio(
+            script="",
+            audio_path=Path(req.audio_path),
+            title=req.title,
+            output_name=req.output_name,
+        )
+        entry = add_item(
+            item_type="video",
+            title=req.title,
+            content=result["video_path"],
+            meta=result,
+        )
+        return {
+            "success": True,
+            **result,
+            "library_id": entry["id"],
+            "requires_approval": ModeManager.requires_approval("video"),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/full_pipeline")
+async def api_full_pipeline(req: FullPipelineRequest):
+    """Convenience: script → voice → simple video."""
+    try:
+        tts = TTSProvider()
+        audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
+        result = create_video_from_script_and_audio(
+            script=req.script,
+            audio_path=audio_path,
+            title=req.title,
+            output_name=req.title,
+        )
+        entry = add_item(
+            item_type="full_project",
+            title=req.title,
+            content={
+                "script": req.script,
+                "audio_path": str(audio_path),
+                "video_path": result["video_path"],
+            },
+            meta=result,
+        )
+        return {
+            "success": True,
+            "audio_path": str(audio_path),
+            "video_path": result["video_path"],
+            "library_id": entry["id"],
+            "requires_approval": ModeManager.requires_approval("video"),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/library")
+async def api_list_library(type: Optional[str] = None, limit: int = 50):
+    return {"items": list_items(item_type=type, limit=limit)}
+
+
+@router.get("/library/{item_id}")
+async def api_get_library_item(item_id: str):
+    item = get_item(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return item
+
+
+@router.delete("/library/{item_id}")
+async def api_delete_library_item(item_id: str):
+    ok = delete_item(item_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"success": True}
