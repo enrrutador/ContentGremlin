@@ -11,13 +11,8 @@
         extend: {
           colors: {
             gremlin: {
-              50:  '#f0fdf4',
-              100: '#dcfce7',
-              500: '#22c55e',
-              600: '#16a34a',
-              700: '#15803d',
-              800: '#166534',
-              900: '#14532d',
+              50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a',
+              700: '#15803d', 800: '#166534', 900: '#14532d',
             }
           }
         }
@@ -119,9 +114,14 @@
             <pre id="script-text" class="bg-gray-950 border border-gray-800 rounded-lg p-4 text-sm overflow-auto max-h-96 whitespace-pre-wrap"></pre>
           </div>
         </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 opacity-60">
-          <h3 class="font-semibold">4. Voz → Video → Subida</h3>
-          <p class="text-sm text-gray-400 mt-1">Próximas versiones (TTS, ensamblado de video y upload).</p>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+          <h3 class="font-semibold">4. Voz + Video</h3>
+          <p class="text-sm text-gray-400">Genera narración y un video simple a partir del último guion.</p>
+          <div class="flex gap-3">
+            <button id="btn-voice" onclick="generateVoice()" disabled class="px-4 py-2 bg-gremlin-700 hover:bg-gremlin-600 rounded-lg text-sm disabled:opacity-40">Generar voz</button>
+            <button id="btn-full" onclick="fullPipeline()" disabled class="px-4 py-2 bg-gremlin-600 hover:bg-gremlin-500 rounded-lg text-sm disabled:opacity-40">Voz + Video</button>
+          </div>
+          <div id="media-result" class="hidden mt-3 text-sm text-gray-300 space-y-1"></div>
         </div>
       </section>
 
@@ -173,8 +173,11 @@
 
       <section id="tab-library" class="tab-content space-y-6">
         <h2 class="text-2xl font-bold">Biblioteca</h2>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <p class="text-gray-400 text-sm">Aquí aparecerán ideas, guiones y videos generados.</p>
+        <div class="flex gap-3 mb-4">
+          <button onclick="loadLibrary()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">Actualizar</button>
+        </div>
+        <div id="library-list" class="space-y-3 text-sm text-gray-300">
+          <p class="text-gray-500">Cargando...</p>
         </div>
       </section>
 
@@ -188,6 +191,9 @@
             <p><span class="text-gray-400">Analyze:</span> <code class="text-gremlin-500">POST /api/analyze_channel</code></p>
             <p><span class="text-gray-400">Ideas:</span> <code class="text-gremlin-500">POST /api/generate_ideas</code></p>
             <p><span class="text-gray-400">Script:</span> <code class="text-gremlin-500">POST /api/write_script</code></p>
+            <p><span class="text-gray-400">Voice:</span> <code class="text-gremlin-500">POST /api/generate_voice</code></p>
+            <p><span class="text-gray-400">Full:</span> <code class="text-gremlin-500">POST /api/full_pipeline</code></p>
+            <p><span class="text-gray-400">Library:</span> <code class="text-gremlin-500">GET /api/library</code></p>
           </div>
         </div>
       </section>
@@ -230,6 +236,9 @@
 
     let lastAnalysisReport = null;
     let lastIdeas = [];
+    let lastScript = '';
+    let lastScriptTitle = '';
+    let lastAudioPath = '';
 
     async function refreshStatus() {
       try {
@@ -322,10 +331,71 @@
         });
         document.getElementById('script-result').classList.remove('hidden');
         document.getElementById('script-text').textContent = data.script || '';
+        lastScript = data.script || '';
+        lastScriptTitle = (idea && idea.title) || 'video';
+        document.getElementById('btn-voice').disabled = false;
+        document.getElementById('btn-full').disabled = false;
         log('Guion generado correctamente');
       } catch (e) {
         log('Error escribiendo guion: ' + e.message);
         alert('Error: ' + e.message);
+      }
+    }
+
+    async function generateVoice() {
+      if (!lastScript) return alert('Primero genera un guion');
+      log('Generando voz...');
+      try {
+        const data = await api('/generate_voice', {
+          method: 'POST',
+          body: JSON.stringify({ text: lastScript, title: lastScriptTitle }),
+        });
+        lastAudioPath = data.audio_path;
+        const el = document.getElementById('media-result');
+        el.classList.remove('hidden');
+        el.innerHTML = '<p>✅ Audio generado: <code class="text-gremlin-500">' + data.audio_path + '</code></p>';
+        log('Voz generada: ' + data.audio_path);
+      } catch (e) {
+        log('Error en voz: ' + e.message);
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function fullPipeline() {
+      if (!lastScript) return alert('Primero genera un guion');
+      log('Generando voz + video...');
+      try {
+        const data = await api('/full_pipeline', {
+          method: 'POST',
+          body: JSON.stringify({ script: lastScript, title: lastScriptTitle }),
+        });
+        lastAudioPath = data.audio_path;
+        const el = document.getElementById('media-result');
+        el.classList.remove('hidden');
+        el.innerHTML = '<p>✅ Audio: <code class="text-gremlin-500">' + data.audio_path + '</code></p><p>✅ Video: <code class="text-gremlin-500">' + data.video_path + '</code></p>';
+        log('Video generado: ' + data.video_path);
+        loadLibrary();
+      } catch (e) {
+        log('Error en pipeline: ' + e.message);
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function loadLibrary() {
+      try {
+        const data = await api('/library?limit=30');
+        const el = document.getElementById('library-list');
+        if (!data.items || data.items.length === 0) {
+          el.innerHTML = '<p class="text-gray-500">La biblioteca está vacía.</p>';
+          return;
+        }
+        el.innerHTML = data.items.map(item =>
+          '<div class="border border-gray-700 rounded-lg p-3 bg-gray-950"><div class="flex justify-between"><span class="text-gremlin-500 font-medium">' +
+          item.type + '</span><span class="text-xs text-gray-500">' + (item.created_at || '').slice(0,19) +
+          '</span></div><p class="mt-1">' + (item.title || '') + '</p></div>'
+        ).join('');
+      } catch (e) {
+        log('Error cargando biblioteca: ' + e.message);
       }
     }
 
@@ -352,13 +422,12 @@
         document.getElementById('cfg-llm').value = profile.llm_provider || 'openai';
         const pub = await api('/config/public');
         const el = document.getElementById('providers-status');
-        el.innerHTML = `
-          <div>OpenAI: ${pub.openai_configured ? '✅ Configurado' : '❌ No configurado'}</div>
-          <div>Anthropic: ${pub.anthropic_configured ? '✅ Configurado' : '❌ No configurado'}</div>
-          <div>xAI / Grok: ${pub.xai_configured ? '✅ Configurado' : '❌ No configurado'}</div>
-          <div>ElevenLabs: ${pub.elevenlabs_configured ? '✅ Configurado' : '❌ No configurado'}</div>
-          <div>Ollama URL: ${pub.ollama_base_url}</div>
-        `;
+        el.innerHTML =
+          '<div>OpenAI: ' + (pub.openai_configured ? '✅ Configurado' : '❌ No configurado') + '</div>' +
+          '<div>Anthropic: ' + (pub.anthropic_configured ? '✅ Configurado' : '❌ No configurado') + '</div>' +
+          '<div>xAI / Grok: ' + (pub.xai_configured ? '✅ Configurado' : '❌ No configurado') + '</div>' +
+          '<div>ElevenLabs: ' + (pub.elevenlabs_configured ? '✅ Configurado' : '❌ No configurado') + '</div>' +
+          '<div>Ollama URL: ' + pub.ollama_base_url + '</div>';
       } catch (e) {
         log('Error cargando config: ' + e.message);
       }
@@ -366,6 +435,7 @@
 
     refreshStatus();
     loadConfig();
+    loadLibrary();
   </script>
 </body>
 </html>
