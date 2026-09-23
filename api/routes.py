@@ -327,3 +327,34 @@ async def api_super_pipeline(req: SuperPipelineRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/agent/skills")
+async def api_agent_skills():
+    """Return skill pack for external agents (OpenClaw, Hermes, etc.)."""
+    root = Path(__file__).resolve().parent.parent
+    skills_dir = root / "skills"
+    prompts_dir = root / "prompts"
+    skills = {}
+    if skills_dir.exists():
+        for f in sorted(skills_dir.glob("*.md")):
+            skills[f.stem] = f.read_text(encoding="utf-8")
+    system_prompt = ""
+    sp = prompts_dir / "agent_system.md"
+    if sp.exists():
+        system_prompt = sp.read_text(encoding="utf-8")
+    return {
+        "name": "ContentGremlin",
+        "version": "0.1.0",
+        "base_url": "http://localhost:8000",
+        "system_prompt": system_prompt,
+        "skills": skills,
+        "workflow": [
+            "GET /api/status",
+            "POST /api/analyze_channel",
+            "POST /api/generate_ideas",
+            "POST /api/write_script",
+            "POST /api/super_pipeline",
+            "POST /api/upload_video (optional)",
+        ],
+    }
