@@ -1,106 +1,45 @@
-"""
-ContentGremlin - Idea Generator
-Creates original video ideas based on channel patterns + user niche.
-Never copies existing titles or concepts literally.
-"""
-
+"""ContentGremlin - Idea Generator with multi-signal originality filtering."""
+from __future__ import annotations
 from typing import Any
+import json, re
 from providers.llm import LLMProvider
 from core.config import load_user_profile
-from core.safety import enforce_originality
-
+from core.safety import enforce_originality, SafetyError
 
 SYSTEM_PROMPT = """Eres un estratega de contenido de YouTube de alto nivel.
-Tu trabajo es generar ideas 100% ORIGINALES inspiradas en patrones de canales exitosos.
+Generas ideas 100% ORIGINALES inspiradas en patrones de alto nivel, nunca en títulos literales.
+Prohibido reutilizar títulos o frases casi idénticas. Responde SOLO con JSON válido."""
 
-Reglas estrictas:
-- NUNCA copies títulos, estructuras o conceptos de forma literal.
-- Usa solo patrones de alto nivel (temas, formato, duración, tipo de hook).
-- Cada idea debe aportar un ángulo nuevo, un giro o un valor diferente.
-- Prioriza curiosidad, claridad y potencial de retención.
-- Responde SIEMPRE en el idioma que se te indique.
-- Devuelve exactamente el formato pedido, sin texto extra.
-"""
-
-
-async def generate_ideas(
-    analysis_report: dict[str, Any],
-    count: int = 8,
-    niche: str | None = None,
-) -> list[dict[str, Any]]:
-    """
-    Generate original ideas from a channel analysis report.
-    """
+async def generate_ideas(analysis_report: dict[str, Any], count: int = 8, niche: str | None = None) -> list[dict[str, Any]]:
     profile = load_user_profile()
     user_niche = niche or profile.get("niche") or "general"
     language = profile.get("style_preferences", {}).get("language", "es")
     tone = profile.get("style_preferences", {}).get("tone", "professional yet engaging")
-
-    patterns = analysis_report.get("patterns", {})
-    top_titles = [v.get("title", "") for v in analysis_report.get("top_videos", [])[:8]]
-    common_words = analysis_report.get("common_title_words", [])[:10]
-    avg_minutes = analysis_report.get("average_duration_minutes", 8)
-
-    prompt = f"""
-Analiza estos patrones de un canal exitoso y genera {count} ideas de video COMPLETAMENTE ORIGINALES.
-
-Nicho del usuario: {user_niche}
-Idioma de salida: {language}
-Tono deseado: {tone}
-Duración promedio del canal de referencia: ~{avg_minutes} minutos
-
-Palabras frecuentes en títulos del canal de referencia (solo como señal de temas): {', '.join(common_words)}
-Algunos títulos de referencia (NO los copies, solo entiéndelos como ejemplos de lo que funciona):
-{chr(10).join(f'- {t}' for t in top_titles)}
-
-Patrones detectados: {patterns}
-
-Genera exactamente {count} ideas. Cada idea debe tener:
-- title: título original y atractivo
-- angle: el ángulo único o giro que la hace diferente
-- hook: la primera frase o idea de apertura (hook)
-- why_it_works: por qué tiene potencial (1-2 frases)
-- estimated_minutes: duración sugerida
-
-Responde ÚNICAMENTE con un JSON válido con esta estructura:
-{{
-  "ideas": [
-    {{
-      "title": "...",
-      "angle": "...",
-      "hook": "...",
-      "why_it_works": "...",
-      "estimated_minutes": 8
-    }}
-  ]
-}}
-"""
-
+    patterns = analysis_report.get("patterns") or {}
+    top_titles = (analysis_report.get("top_titles") or analysis_report.get("reference_titles_for_safety") or [v.get("title", "") for v in analysis_report.get("top_videos", [])[:12]] or [v.get("title", "") for v in analysis_report.get("videos_sample", [])[:12]])
+    top_titles = [t for t in top_titles if t]
+    common_words = patterns.get("common_topic_words") or analysis_report.get("common_title_words") or []
+    avg_minutes = patterns.get("suggested_script_minutes") or analysis_report.get("average_duration_minutes") or 8
+    prompt = f"""Genera {count} ideas COMPLETAMENTE ORIGINALES.
+Nicho: {user_niche} | Idioma: {language} | Tono: {tone} | Duración ~{avg_minutes} min
+Señales del canal (NO copiar): postura={patterns.get('content_posture')}, fórmula={patterns.get('dominant_title_formula')}, hooks={patterns.get('hook_styles_signal')}, temas={', '.join(common_words[:15])}
+Títulos de referencia (prohibido imitar):
+{chr(10).join(f'- {t}' for t in top_titles[:10])}
+JSON: {{"ideas": [{{"title": "...", "angle": "...", "hook": "...", "why_it_works": "...", "estimated_minutes": 8}}]}}"""
     llm = LLMProvider()
     raw = await llm.generate(prompt, system=SYSTEM_PROMPT, temperature=0.85)
-
-    import json
-    import re
-
     ideas = []
     try:
-        match = re.search(r'\{[\s\S]*\}', raw)
-        if match:
-            data = json.loads(match.group(0))
-            ideas = data.get("ideas", [])
-        else:
-            ideas = []
+        match = re.search(r"\{[\s\S]*\}", raw)
+        if match: ideas = (json.loads(match.group(0)).get("ideas") or [])
     except Exception:
         ideas = []
-
-    reference_snippets = top_titles
     cleaned = []
     for idea in ideas:
-        title = idea.get("title", "")
+        blob = f"{idea.get('title','')}. {idea.get('angle','')}. {idea.get('hook','')}"
         try:
-            enforce_originality(title + " " + idea.get("angle", ""), reference_snippets)
+            idea["originality"] = enforce_originality(blob, top_titles, strict=True)
             cleaned.append(idea)
-        except Exception:
+        except SafetyError:
             continue
-
     return cleaned[:count]
