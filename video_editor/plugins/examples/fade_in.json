@@ -1,0 +1,13 @@
+{
+  "id": "transition.fade_in",
+  "name": "Fundido de entrada",
+  "version": "0.1.0",
+  "category": "Transiciones",
+  "type": "transition",
+  "description": "Fundido lineal de 0 a 1",
+  "params": {
+    "duration": {"type":"number","default":1}
+  },
+  "ffmpeg": {"filter":"fade=t=in:st=0:d=1"},
+  "license": "review-required"
+}
