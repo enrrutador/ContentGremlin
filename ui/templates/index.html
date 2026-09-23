@@ -5,437 +5,161 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ContentGremlin</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            gremlin: {
-              50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a',
-              700: '#15803d', 800: '#166534', 900: '#14532d',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body { font-family: 'Inter', system-ui, sans-serif; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .nav-btn.active { background-color: #166534; color: white; }
-    pre { white-space: pre-wrap; word-break: break-word; }
-  </style>
+  <script>tailwind.config={theme:{extend:{colors:{gremlin:{50:'#f0fdf4',100:'#dcfce7',500:'#22c55e',600:'#16a34a',700:'#15803d',800:'#166534',900:'#14532d'}}}}}</script>
+  <style>body{font-family:Inter,system-ui,sans-serif}.tab-content{display:none}.tab-content.active{display:block}.nav-btn.active{background-color:#166534;color:#fff}pre{white-space:pre-wrap;word-break:break-word}</style>
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen">
-
-  <header class="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gremlin-600 flex items-center justify-center text-xl font-bold">G</div>
-        <div>
-          <h1 class="text-xl font-bold tracking-tight">ContentGremlin</h1>
-          <p class="text-xs text-gray-400">Steal the pattern, not the content</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-4 text-sm">
-        <span id="mode-badge" class="px-3 py-1 rounded-full bg-yellow-900/50 text-yellow-300 text-xs font-medium">Mode: —</span>
-        <span id="status-dot" class="w-2 h-2 rounded-full bg-green-500"></span>
-      </div>
+<header class="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gremlin-600 flex items-center justify-center text-xl font-bold">G</div>
+      <div><h1 class="text-xl font-bold tracking-tight">ContentGremlin</h1><p class="text-xs text-gray-400">Steal the pattern, not the content</p></div>
     </div>
-  </header>
-
-  <div class="max-w-7xl mx-auto px-4 py-6 flex gap-6">
-    <nav class="w-56 flex-shrink-0 space-y-1">
-      <button onclick="showTab('dashboard')" class="nav-btn active w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800 transition" data-tab="dashboard">Dashboard</button>
-      <button onclick="showTab('generate')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800 transition" data-tab="generate">Generar Contenido</button>
-      <button onclick="showTab('config')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800 transition" data-tab="config">Configuración</button>
-      <button onclick="showTab('plugins')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800 transition" data-tab="plugins">Plugins</button>
-      <button onclick="showTab('library')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800 transition" data-tab="library">Biblioteca</button>
-      <button onclick="showTab('agents')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800 transition" data-tab="agents">Agentes & API</button>
-      <button onclick="showTab('logs')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800 transition" data-tab="logs">Logs</button>
-    </nav>
-
-    <main class="flex-1 min-w-0">
-
-      <section id="tab-dashboard" class="tab-content active space-y-6">
-        <h2 class="text-2xl font-bold">Dashboard</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <p class="text-sm text-gray-400">Modo actual</p>
-            <p id="dash-mode" class="text-2xl font-semibold mt-1">—</p>
-          </div>
-          <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <p class="text-sm text-gray-400">Nicho</p>
-            <p id="dash-niche" class="text-2xl font-semibold mt-1 truncate">—</p>
-          </div>
-          <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <p class="text-sm text-gray-400">LLM Provider</p>
-            <p id="dash-llm" class="text-2xl font-semibold mt-1">—</p>
-          </div>
-        </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h3 class="font-semibold mb-3">Acciones rápidas</h3>
-          <div class="flex flex-wrap gap-3">
-            <button onclick="showTab('generate')" class="px-4 py-2 bg-gremlin-600 hover:bg-gremlin-500 rounded-lg text-sm font-medium transition">Analizar un canal</button>
-            <button onclick="setMode('supervised')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">Modo Supervisado</button>
-            <button onclick="setMode('autonomous')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">Modo Autónomo</button>
-          </div>
-        </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h3 class="font-semibold mb-2">Reglas de seguridad (siempre activas)</h3>
-          <ul id="safety-list" class="text-sm text-gray-400 space-y-1 list-disc list-inside"></ul>
-        </div>
-      </section>
-
-      <section id="tab-generate" class="tab-content space-y-6">
-        <h2 class="text-2xl font-bold">Generar Contenido</h2>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-          <h3 class="font-semibold">1. Analizar canal de referencia</h3>
-          <div class="flex gap-3">
-            <input id="channel-url" type="text" placeholder="https://youtube.com/@canal o @handle"
-                   class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-gremlin-500" />
-            <button onclick="analyzeChannel()" class="px-5 py-2.5 bg-gremlin-600 hover:bg-gremlin-500 rounded-lg text-sm font-medium transition">Analizar</button>
-          </div>
-          <div id="analyze-result" class="hidden mt-4">
-            <pre id="analyze-json" class="bg-gray-950 border border-gray-800 rounded-lg p-4 text-xs overflow-auto max-h-80"></pre>
-          </div>
-        </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-          <h3 class="font-semibold">2. Generar ideas originales</h3>
-          <p class="text-sm text-gray-400">Requiere un análisis previo y al menos un LLM configurado.</p>
-          <button id="btn-ideas" onclick="generateIdeas()" disabled class="px-5 py-2.5 bg-gray-700 rounded-lg text-sm font-medium transition disabled:opacity-40">Generar ideas</button>
-          <div id="ideas-result" class="hidden mt-4 space-y-3"></div>
-        </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-          <h3 class="font-semibold">3. Escribir guion</h3>
-          <p class="text-sm text-gray-400">Selecciona una idea de arriba y genera el guion completo.</p>
-          <div id="script-result" class="hidden mt-4">
-            <pre id="script-text" class="bg-gray-950 border border-gray-800 rounded-lg p-4 text-sm overflow-auto max-h-96 whitespace-pre-wrap"></pre>
-          </div>
-        </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-          <h3 class="font-semibold">4. Voz + Video</h3>
-          <p class="text-sm text-gray-400">Genera narración y un video simple a partir del último guion.</p>
-          <div class="flex gap-3">
-            <button id="btn-voice" onclick="generateVoice()" disabled class="px-4 py-2 bg-gremlin-700 hover:bg-gremlin-600 rounded-lg text-sm disabled:opacity-40">Generar voz</button>
-            <button id="btn-full" onclick="fullPipeline()" disabled class="px-4 py-2 bg-gremlin-600 hover:bg-gremlin-500 rounded-lg text-sm disabled:opacity-40">Voz + Video</button>
-          </div>
-          <div id="media-result" class="hidden mt-3 text-sm text-gray-300 space-y-1"></div>
-        </div>
-      </section>
-
-      <section id="tab-config" class="tab-content space-y-6">
-        <h2 class="text-2xl font-bold">Configuración</h2>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-          <h3 class="font-semibold">Modo de operación</h3>
-          <div class="flex gap-3">
-            <button onclick="setMode('supervised')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">Supervisado</button>
-            <button onclick="setMode('autonomous')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">Autónomo</button>
-          </div>
-        </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-          <h3 class="font-semibold">Perfil de usuario</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="text-xs text-gray-400">Nicho</label>
-              <input id="cfg-niche" type="text" class="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label class="text-xs text-gray-400">Proveedor LLM preferido</label>
-              <select id="cfg-llm" class="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="xai">xAI / Grok</option>
-                <option value="ollama">Ollama (local)</option>
-              </select>
-            </div>
-          </div>
-          <button onclick="saveProfile()" class="px-4 py-2 bg-gremlin-600 hover:bg-gremlin-500 rounded-lg text-sm font-medium">Guardar perfil</button>
-        </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
-          <h3 class="font-semibold">Proveedores configurados</h3>
-          <div id="providers-status" class="text-sm space-y-1 text-gray-400"></div>
-          <p class="text-xs text-gray-500 mt-3">Las API keys se configuran en el archivo <code class="text-gremlin-500">.env</code>.</p>
-        </div>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h3 class="font-semibold mb-2">YouTube API</h3>
-          <p class="text-sm text-gray-400">Opcional. Configúrala cuando quieras subir videos.</p>
-        </div>
-      </section>
-
-      <section id="tab-plugins" class="tab-content space-y-6">
-        <h2 class="text-2xl font-bold">Plugins</h2>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <p class="text-gray-400 text-sm">Sistema de plugins listo para extensiones.</p>
-        </div>
-      </section>
-
-      <section id="tab-library" class="tab-content space-y-6">
-        <h2 class="text-2xl font-bold">Biblioteca</h2>
-        <div class="flex gap-3 mb-4">
-          <button onclick="loadLibrary()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">Actualizar</button>
-        </div>
-        <div id="library-list" class="space-y-3 text-sm text-gray-300">
-          <p class="text-gray-500">Cargando...</p>
-        </div>
-      </section>
-
-      <section id="tab-agents" class="tab-content space-y-6">
-        <h2 class="text-2xl font-bold">Agentes & API</h2>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-          <p class="text-sm text-gray-300">Diseñado para ser usado por agentes (OpenClaw, Hermes, etc.).</p>
-          <div class="space-y-2 text-sm">
-            <p><span class="text-gray-400">Docs:</span> <a href="/docs" target="_blank" class="text-gremlin-500 hover:underline">/docs</a></p>
-            <p><span class="text-gray-400">Status:</span> <code class="text-gremlin-500">GET /api/status</code></p>
-            <p><span class="text-gray-400">Analyze:</span> <code class="text-gremlin-500">POST /api/analyze_channel</code></p>
-            <p><span class="text-gray-400">Ideas:</span> <code class="text-gremlin-500">POST /api/generate_ideas</code></p>
-            <p><span class="text-gray-400">Script:</span> <code class="text-gremlin-500">POST /api/write_script</code></p>
-            <p><span class="text-gray-400">Voice:</span> <code class="text-gremlin-500">POST /api/generate_voice</code></p>
-            <p><span class="text-gray-400">Full:</span> <code class="text-gremlin-500">POST /api/full_pipeline</code></p>
-            <p><span class="text-gray-400">Library:</span> <code class="text-gremlin-500">GET /api/library</code></p>
-          </div>
-        </div>
-      </section>
-
-      <section id="tab-logs" class="tab-content space-y-6">
-        <h2 class="text-2xl font-bold">Logs</h2>
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <pre id="logs-area" class="text-xs text-gray-400 h-64 overflow-auto">Sistema iniciado. Esperando acciones...</pre>
-        </div>
-      </section>
-
-    </main>
+    <div class="flex items-center gap-4 text-sm">
+      <span id="mode-badge" class="px-3 py-1 rounded-full bg-yellow-900/50 text-yellow-300 text-xs font-medium">Mode: —</span>
+      <span class="w-2 h-2 rounded-full bg-green-500"></span>
+    </div>
   </div>
-
-  <script>
-    function showTab(name) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-      document.getElementById('tab-' + name).classList.add('active');
-      document.querySelector(`[data-tab="${name}"]`).classList.add('active');
-    }
-
-    async function api(path, options = {}) {
-      const res = await fetch('/api' + path, {
-        headers: { 'Content-Type': 'application/json' },
-        ...options,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(err.detail || 'Error');
-      }
-      return res.json();
-    }
-
-    function log(msg) {
-      const el = document.getElementById('logs-area');
-      const time = new Date().toLocaleTimeString();
-      el.textContent = `[${time}] ${msg}\n` + el.textContent;
-    }
-
-    let lastAnalysisReport = null;
-    let lastIdeas = [];
-    let lastScript = '';
-    let lastScriptTitle = '';
-    let lastAudioPath = '';
-
-    async function refreshStatus() {
-      try {
-        const data = await api('/status');
-        document.getElementById('mode-badge').textContent = 'Mode: ' + data.mode;
-        document.getElementById('dash-mode').textContent = data.mode;
-        document.getElementById('dash-niche').textContent = data.niche || '(sin definir)';
-        document.getElementById('dash-llm').textContent = data.llm_provider || '—';
-        const list = document.getElementById('safety-list');
-        list.innerHTML = data.safety.rules.map(r => `<li>${r}</li>`).join('');
-      } catch (e) {
-        log('Error al obtener status: ' + e.message);
-      }
-    }
-
-    async function setMode(mode) {
-      try {
-        const data = await api('/set_mode', { method: 'POST', body: JSON.stringify({ mode }) });
-        log('Modo cambiado a: ' + data.mode);
-        refreshStatus();
-      } catch (e) {
-        log('Error: ' + e.message);
-        alert(e.message);
-      }
-    }
-
-    async function analyzeChannel() {
-      const url = document.getElementById('channel-url').value.trim();
-      if (!url) return alert('Escribe la URL o handle del canal');
-      log('Analizando canal: ' + url);
-      try {
-        const data = await api('/analyze_channel', {
-          method: 'POST',
-          body: JSON.stringify({ channel_url: url }),
-        });
-        lastAnalysisReport = data.report;
-        document.getElementById('analyze-result').classList.remove('hidden');
-        document.getElementById('analyze-json').textContent = JSON.stringify(data.report, null, 2);
-        document.getElementById('btn-ideas').disabled = false;
-        log('Análisis completado correctamente');
-      } catch (e) {
-        log('Error en análisis: ' + e.message);
-        alert('Error: ' + e.message);
-      }
-    }
-
-    async function generateIdeas() {
-      if (!lastAnalysisReport) return alert('Primero analiza un canal');
-      log('Generando ideas originales...');
-      try {
-        const data = await api('/generate_ideas', {
-          method: 'POST',
-          body: JSON.stringify({ analysis_report: lastAnalysisReport, count: 6 }),
-        });
-        lastIdeas = data.ideas || [];
-        const container = document.getElementById('ideas-result');
-        container.classList.remove('hidden');
-        if (lastIdeas.length === 0) {
-          container.innerHTML = '<p class="text-sm text-yellow-400">No se generaron ideas. Revisa que tengas un LLM configurado en .env</p>';
-        } else {
-          container.innerHTML = lastIdeas.map((idea, i) => `
-            <div class="border border-gray-700 rounded-lg p-4 bg-gray-950">
-              <div class="flex justify-between items-start gap-3">
-                <div>
-                  <p class="font-medium text-gremlin-500">${idea.title || 'Sin título'}</p>
-                  <p class="text-xs text-gray-400 mt-1"><strong>Ángulo:</strong> ${idea.angle || ''}</p>
-                  <p class="text-xs text-gray-400"><strong>Hook:</strong> ${idea.hook || ''}</p>
-                  <p class="text-xs text-gray-500 mt-1">${idea.why_it_works || ''}</p>
-                </div>
-                <button onclick="writeScript(${i})" class="px-3 py-1.5 bg-gremlin-700 hover:bg-gremlin-600 rounded text-xs whitespace-nowrap">Escribir guion</button>
-              </div>
-            </div>
-          `).join('');
-        }
-        log(`Se generaron ${lastIdeas.length} ideas`);
-      } catch (e) {
-        log('Error generando ideas: ' + e.message);
-        alert('Error: ' + e.message);
-      }
-    }
-
-    async function writeScript(index) {
-      const idea = lastIdeas[index];
-      if (!idea) return;
-      log('Escribiendo guion para: ' + (idea.title || ''));
-      try {
-        const data = await api('/write_script', {
-          method: 'POST',
-          body: JSON.stringify({ idea }),
-        });
-        document.getElementById('script-result').classList.remove('hidden');
-        document.getElementById('script-text').textContent = data.script || '';
-        lastScript = data.script || '';
-        lastScriptTitle = (idea && idea.title) || 'video';
-        document.getElementById('btn-voice').disabled = false;
-        document.getElementById('btn-full').disabled = false;
-        log('Guion generado correctamente');
-      } catch (e) {
-        log('Error escribiendo guion: ' + e.message);
-        alert('Error: ' + e.message);
-      }
-    }
-
-    async function generateVoice() {
-      if (!lastScript) return alert('Primero genera un guion');
-      log('Generando voz...');
-      try {
-        const data = await api('/generate_voice', {
-          method: 'POST',
-          body: JSON.stringify({ text: lastScript, title: lastScriptTitle }),
-        });
-        lastAudioPath = data.audio_path;
-        const el = document.getElementById('media-result');
-        el.classList.remove('hidden');
-        el.innerHTML = '<p>✅ Audio generado: <code class="text-gremlin-500">' + data.audio_path + '</code></p>';
-        log('Voz generada: ' + data.audio_path);
-      } catch (e) {
-        log('Error en voz: ' + e.message);
-        alert('Error: ' + e.message);
-      }
-    }
-
-    async function fullPipeline() {
-      if (!lastScript) return alert('Primero genera un guion');
-      log('Generando voz + video...');
-      try {
-        const data = await api('/full_pipeline', {
-          method: 'POST',
-          body: JSON.stringify({ script: lastScript, title: lastScriptTitle }),
-        });
-        lastAudioPath = data.audio_path;
-        const el = document.getElementById('media-result');
-        el.classList.remove('hidden');
-        el.innerHTML = '<p>✅ Audio: <code class="text-gremlin-500">' + data.audio_path + '</code></p><p>✅ Video: <code class="text-gremlin-500">' + data.video_path + '</code></p>';
-        log('Video generado: ' + data.video_path);
-        loadLibrary();
-      } catch (e) {
-        log('Error en pipeline: ' + e.message);
-        alert('Error: ' + e.message);
-      }
-    }
-
-    async function loadLibrary() {
-      try {
-        const data = await api('/library?limit=30');
-        const el = document.getElementById('library-list');
-        if (!data.items || data.items.length === 0) {
-          el.innerHTML = '<p class="text-gray-500">La biblioteca está vacía.</p>';
-          return;
-        }
-        el.innerHTML = data.items.map(item =>
-          '<div class="border border-gray-700 rounded-lg p-3 bg-gray-950"><div class="flex justify-between"><span class="text-gremlin-500 font-medium">' +
-          item.type + '</span><span class="text-xs text-gray-500">' + (item.created_at || '').slice(0,19) +
-          '</span></div><p class="mt-1">' + (item.title || '') + '</p></div>'
-        ).join('');
-      } catch (e) {
-        log('Error cargando biblioteca: ' + e.message);
-      }
-    }
-
-    async function saveProfile() {
-      const niche = document.getElementById('cfg-niche').value;
-      const llm = document.getElementById('cfg-llm').value;
-      try {
-        await api('/profile', {
-          method: 'POST',
-          body: JSON.stringify({ niche, llm_provider: llm }),
-        });
-        log('Perfil guardado');
-        refreshStatus();
-        alert('Perfil guardado');
-      } catch (e) {
-        alert(e.message);
-      }
-    }
-
-    async function loadConfig() {
-      try {
-        const profile = await api('/profile');
-        document.getElementById('cfg-niche').value = profile.niche || '';
-        document.getElementById('cfg-llm').value = profile.llm_provider || 'openai';
-        const pub = await api('/config/public');
-        const el = document.getElementById('providers-status');
-        el.innerHTML =
-          '<div>OpenAI: ' + (pub.openai_configured ? '✅ Configurado' : '❌ No configurado') + '</div>' +
-          '<div>Anthropic: ' + (pub.anthropic_configured ? '✅ Configurado' : '❌ No configurado') + '</div>' +
-          '<div>xAI / Grok: ' + (pub.xai_configured ? '✅ Configurado' : '❌ No configurado') + '</div>' +
-          '<div>ElevenLabs: ' + (pub.elevenlabs_configured ? '✅ Configurado' : '❌ No configurado') + '</div>' +
-          '<div>Ollama URL: ' + pub.ollama_base_url + '</div>';
-      } catch (e) {
-        log('Error cargando config: ' + e.message);
-      }
-    }
-
-    refreshStatus();
-    loadConfig();
-    loadLibrary();
-  </script>
+</header>
+<div class="max-w-7xl mx-auto px-4 py-6 flex gap-6">
+  <nav class="w-56 flex-shrink-0 space-y-1">
+    <button onclick="showTab('dashboard')" class="nav-btn active w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800" data-tab="dashboard">Dashboard</button>
+    <button onclick="showTab('generate')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800" data-tab="generate">Generar Contenido</button>
+    <button onclick="showTab('config')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800" data-tab="config">Configuración</button>
+    <button onclick="showTab('plugins')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800" data-tab="plugins">Plugins</button>
+    <button onclick="showTab('library')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800" data-tab="library">Biblioteca</button>
+    <button onclick="showTab('agents')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800" data-tab="agents">Agentes & API</button>
+    <button onclick="showTab('logs')" class="nav-btn w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-800" data-tab="logs">Logs</button>
+  </nav>
+  <main class="flex-1 min-w-0">
+    <section id="tab-dashboard" class="tab-content active space-y-6">
+      <h2 class="text-2xl font-bold">Dashboard</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5"><p class="text-sm text-gray-400">Modo actual</p><p id="dash-mode" class="text-2xl font-semibold mt-1">—</p></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5"><p class="text-sm text-gray-400">Nicho</p><p id="dash-niche" class="text-2xl font-semibold mt-1 truncate">—</p></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5"><p class="text-sm text-gray-400">LLM Provider</p><p id="dash-llm" class="text-2xl font-semibold mt-1">—</p></div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <h3 class="font-semibold mb-3">Acciones rápidas</h3>
+        <div class="flex flex-wrap gap-3">
+          <button onclick="showTab('generate')" class="px-4 py-2 bg-gremlin-600 hover:bg-gremlin-500 rounded-lg text-sm font-medium">Analizar un canal</button>
+          <button onclick="setMode('supervised')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">Modo Supervisado</button>
+          <button onclick="setMode('autonomous')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">Modo Autónomo</button>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <h3 class="font-semibold mb-2">Reglas de seguridad</h3>
+        <ul id="safety-list" class="text-sm text-gray-400 space-y-1 list-disc list-inside"></ul>
+      </div>
+    </section>
+    <section id="tab-generate" class="tab-content space-y-6">
+      <h2 class="text-2xl font-bold">Generar Contenido</h2>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <h3 class="font-semibold">1. Analizar canal</h3>
+        <div class="flex gap-3">
+          <input id="channel-url" type="text" placeholder="https://youtube.com/@canal o @handle" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-gremlin-500" />
+          <button onclick="analyzeChannel()" class="px-5 py-2.5 bg-gremlin-600 hover:bg-gremlin-500 rounded-lg text-sm font-medium">Analizar</button>
+        </div>
+        <div id="analyze-result" class="hidden mt-4"><pre id="analyze-json" class="bg-gray-950 border border-gray-800 rounded-lg p-4 text-xs overflow-auto max-h-80"></pre></div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <h3 class="font-semibold">2. Ideas originales</h3>
+        <button id="btn-ideas" onclick="generateIdeas()" disabled class="px-5 py-2.5 bg-gray-700 rounded-lg text-sm font-medium disabled:opacity-40">Generar ideas</button>
+        <div id="ideas-result" class="hidden mt-4 space-y-3"></div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <h3 class="font-semibold">3. Guion</h3>
+        <div id="script-result" class="hidden mt-4"><pre id="script-text" class="bg-gray-950 border border-gray-800 rounded-lg p-4 text-sm overflow-auto max-h-96 whitespace-pre-wrap"></pre></div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <h3 class="font-semibold">4. Producción completa</h3>
+        <p class="text-sm text-gray-400">Voz, subtítulos, video, miniatura y metadata.</p>
+        <div class="flex flex-wrap gap-2">
+          <button id="btn-voice" onclick="generateVoice()" disabled class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm disabled:opacity-40">Voz</button>
+          <button id="btn-subs" onclick="generateSubs()" disabled class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm disabled:opacity-40">Subtítulos</button>
+          <button id="btn-meta" onclick="generateMeta()" disabled class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm disabled:opacity-40">Metadata</button>
+          <button id="btn-thumb" onclick="generateThumb()" disabled class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm disabled:opacity-40">Miniatura</button>
+          <button id="btn-full" onclick="superPipeline()" disabled class="px-3 py-2 bg-gremlin-600 hover:bg-gremlin-500 rounded-lg text-sm disabled:opacity-40">Todo (Super Pipeline)</button>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-gray-400 mt-2"><input type="checkbox" id="burn-subs" class="rounded" /> Incrustar subtítulos en el video</label>
+        <div id="media-result" class="hidden mt-3 text-sm text-gray-300 space-y-1"></div>
+      </div>
+    </section>
+    <section id="tab-config" class="tab-content space-y-6">
+      <h2 class="text-2xl font-bold">Configuración</h2>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <h3 class="font-semibold">Modo</h3>
+        <div class="flex gap-3">
+          <button onclick="setMode('supervised')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">Supervisado</button>
+          <button onclick="setMode('autonomous')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">Autónomo</button>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <h3 class="font-semibold">Perfil</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="text-xs text-gray-400">Nicho</label><input id="cfg-niche" type="text" class="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm" /></div>
+          <div><label class="text-xs text-gray-400">LLM</label>
+            <select id="cfg-llm" class="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+              <option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="xai">xAI / Grok</option><option value="ollama">Ollama</option>
+            </select>
+          </div>
+        </div>
+        <button onclick="saveProfile()" class="px-4 py-2 bg-gremlin-600 hover:bg-gremlin-500 rounded-lg text-sm font-medium">Guardar perfil</button>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
+        <h3 class="font-semibold">Proveedores</h3>
+        <div id="providers-status" class="text-sm space-y-1 text-gray-400"></div>
+        <p class="text-xs text-gray-500 mt-3">API keys en <code class="text-gremlin-500">.env</code></p>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <h3 class="font-semibold mb-2">YouTube API</h3>
+        <p class="text-sm text-gray-400">Opcional. Coloca client_secrets.json en credentials/</p>
+      </div>
+    </section>
+    <section id="tab-plugins" class="tab-content space-y-6"><h2 class="text-2xl font-bold">Plugins</h2><div class="bg-gray-900 border border-gray-800 rounded-xl p-5"><p class="text-gray-400 text-sm">Sistema de plugins listo para extensiones.</p></div></section>
+    <section id="tab-library" class="tab-content space-y-6">
+      <h2 class="text-2xl font-bold">Biblioteca</h2>
+      <button onclick="loadLibrary()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm mb-4">Actualizar</button>
+      <div id="library-list" class="space-y-3 text-sm text-gray-300"><p class="text-gray-500">Cargando...</p></div>
+    </section>
+    <section id="tab-agents" class="tab-content space-y-6">
+      <h2 class="text-2xl font-bold">Agentes & API</h2>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-2 text-sm">
+        <p class="text-gray-300">Compatible con OpenClaw, Hermes, etc.</p>
+        <p><a href="/docs" target="_blank" class="text-gremlin-500 hover:underline">/docs</a></p>
+        <p><code class="text-gremlin-500">POST /api/analyze_channel</code> · <code class="text-gremlin-500">POST /api/generate_ideas</code></p>
+        <p><code class="text-gremlin-500">POST /api/write_script</code> · <code class="text-gremlin-500">POST /api/generate_voice</code></p>
+        <p><code class="text-gremlin-500">POST /api/generate_subtitles</code> · <code class="text-gremlin-500">POST /api/generate_metadata</code></p>
+        <p><code class="text-gremlin-500">POST /api/generate_thumbnail</code> · <code class="text-gremlin-500">POST /api/super_pipeline</code></p>
+        <p><code class="text-gremlin-500">POST /api/upload_video</code> · <code class="text-gremlin-500">GET /api/library</code></p>
+      </div>
+    </section>
+    <section id="tab-logs" class="tab-content space-y-6">
+      <h2 class="text-2xl font-bold">Logs</h2>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5"><pre id="logs-area" class="text-xs text-gray-400 h-64 overflow-auto">Sistema iniciado...</pre></div>
+    </section>
+  </main>
+</div>
+<script>
+function showTab(n){document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.nav-btn').forEach(e=>e.classList.remove('active'));document.getElementById('tab-'+n).classList.add('active');document.querySelector('[data-tab="'+n+'"]').classList.add('active')}
+async function api(path,opts={}){const r=await fetch('/api'+path,{headers:{'Content-Type':'application/json'},...opts});if(!r.ok){const e=await r.json().catch(()=>({detail:r.statusText}));throw new Error(e.detail||'Error')}return r.json()}
+function log(m){const el=document.getElementById('logs-area');el.textContent='['+new Date().toLocaleTimeString()+'] '+m+'\n'+el.textContent}
+let lastAnalysisReport=null,lastIdeas=[],lastScript='',lastScriptTitle='',lastAudioPath='';
+async function refreshStatus(){try{const d=await api('/status');document.getElementById('mode-badge').textContent='Mode: '+d.mode;document.getElementById('dash-mode').textContent=d.mode;document.getElementById('dash-niche').textContent=d.niche||'(sin definir)';document.getElementById('dash-llm').textContent=d.llm_provider||'—';document.getElementById('safety-list').innerHTML=d.safety.rules.map(r=>'<li>'+r+'</li>').join('')}catch(e){log('Error status: '+e.message)}}
+async function setMode(m){try{const d=await api('/set_mode',{method:'POST',body:JSON.stringify({mode:m})});log('Modo: '+d.mode);refreshStatus()}catch(e){alert(e.message)}}
+async function analyzeChannel(){const url=document.getElementById('channel-url').value.trim();if(!url)return alert('URL del canal');log('Analizando...');try{const d=await api('/analyze_channel',{method:'POST',body:JSON.stringify({channel_url:url})});lastAnalysisReport=d.report;document.getElementById('analyze-result').classList.remove('hidden');document.getElementById('analyze-json').textContent=JSON.stringify(d.report,null,2);document.getElementById('btn-ideas').disabled=false;log('Análisis OK')}catch(e){log(e.message);alert(e.message)}}
+async function generateIdeas(){if(!lastAnalysisReport)return alert('Analiza un canal primero');log('Generando ideas...');try{const d=await api('/generate_ideas',{method:'POST',body:JSON.stringify({analysis_report:lastAnalysisReport,count:6})});lastIdeas=d.ideas||[];const c=document.getElementById('ideas-result');c.classList.remove('hidden');c.innerHTML=lastIdeas.length?lastIdeas.map((idea,i)=>'<div class="border border-gray-700 rounded-lg p-4 bg-gray-950"><div class="flex justify-between gap-3"><div><p class="font-medium text-gremlin-500">'+(idea.title||'')+'</p><p class="text-xs text-gray-400 mt-1"><strong>Ángulo:</strong> '+(idea.angle||'')+'</p><p class="text-xs text-gray-400"><strong>Hook:</strong> '+(idea.hook||'')+'</p></div><button onclick="writeScript('+i+')" class="px-3 py-1.5 bg-gremlin-700 hover:bg-gremlin-600 rounded text-xs">Escribir guion</button></div></div>').join(''):'<p class="text-yellow-400 text-sm">Sin ideas. Configura un LLM en .env</p>';log(lastIdeas.length+' ideas')}catch(e){log(e.message);alert(e.message)}}
+async function writeScript(i){const idea=lastIdeas[i];if(!idea)return;log('Escribiendo guion...');try{const d=await api('/write_script',{method:'POST',body:JSON.stringify({idea})});document.getElementById('script-result').classList.remove('hidden');document.getElementById('script-text').textContent=d.script||'';lastScript=d.script||'';lastScriptTitle=idea.title||'video';['btn-voice','btn-subs','btn-meta','btn-thumb','btn-full'].forEach(id=>document.getElementById(id).disabled=false);log('Guion OK')}catch(e){log(e.message);alert(e.message)}}
+async function generateVoice(){if(!lastScript)return alert('Genera un guion');log('Generando voz...');try{const d=await api('/generate_voice',{method:'POST',body:JSON.stringify({text:lastScript,title:lastScriptTitle})});lastAudioPath=d.audio_path;const el=document.getElementById('media-result');el.classList.remove('hidden');el.innerHTML='<p>✅ Audio: <code class="text-gremlin-500">'+d.audio_path+'</code></p>';log('Voz OK')}catch(e){log(e.message);alert(e.message)}}
+async function generateSubs(){if(!lastScript)return alert('Genera un guion');log('Subtítulos...');try{const d=await api('/generate_subtitles',{method:'POST',body:JSON.stringify({script:lastScript,title:lastScriptTitle})});const el=document.getElementById('media-result');el.classList.remove('hidden');el.innerHTML='<p>✅ SRT: <code class="text-gremlin-500">'+d.srt_path+'</code></p><p>✅ VTT: <code class="text-gremlin-500">'+d.vtt_path+'</code></p>';log('Subs OK')}catch(e){log(e.message);alert(e.message)}}
+async function generateMeta(){if(!lastScript)return alert('Genera un guion');log('Metadata...');try{const d=await api('/generate_metadata',{method:'POST',body:JSON.stringify({script:lastScript})});const m=d.metadata||{};const el=document.getElementById('media-result');el.classList.remove('hidden');el.innerHTML='<p><strong>Título:</strong> '+(m.title||'')+'</p><pre class="text-xs mt-2 bg-gray-950 p-2 rounded max-h-40 overflow-auto">'+(m.description||'')+'</pre><p class="text-xs mt-1">Tags: '+(m.tags||[]).join(', ')+'</p>';log('Meta OK')}catch(e){log(e.message);alert(e.message)}}
+async function generateThumb(){if(!lastScriptTitle)return alert('Genera un guion');log('Miniatura...');try{const d=await api('/generate_thumbnail',{method:'POST',body:JSON.stringify({title:lastScriptTitle})});const el=document.getElementById('media-result');el.classList.remove('hidden');el.innerHTML='<p>✅ Miniatura: <code class="text-gremlin-500">'+d.thumbnail_path+'</code></p>';log('Thumb OK')}catch(e){log(e.message);alert(e.message)}}
+async function superPipeline(){if(!lastScript)return alert('Genera un guion');log('Super Pipeline...');try{const burn=document.getElementById('burn-subs')?.checked||false;const d=await api('/super_pipeline',{method:'POST',body:JSON.stringify({script:lastScript,title:lastScriptTitle,burn_subtitles:burn})});lastAudioPath=d.audio_path;const m=d.metadata||{};const el=document.getElementById('media-result');el.classList.remove('hidden');el.innerHTML='<p>✅ Audio: <code class="text-gremlin-500">'+d.audio_path+'</code></p><p>✅ Video: <code class="text-gremlin-500">'+d.video_path+'</code></p><p>✅ SRT: <code class="text-gremlin-500">'+d.srt_path+'</code></p><p>✅ Miniatura: <code class="text-gremlin-500">'+d.thumbnail_path+'</code></p><p><strong>Título:</strong> '+(m.title||'')+'</p>';log('Super Pipeline OK');loadLibrary()}catch(e){log(e.message);alert(e.message)}}
+async function fullPipeline(){return superPipeline()}
+async function loadLibrary(){try{const d=await api('/library?limit=30');const el=document.getElementById('library-list');if(!d.items||!d.items.length){el.innerHTML='<p class="text-gray-500">Vacía</p>';return}el.innerHTML=d.items.map(i=>'<div class="border border-gray-700 rounded-lg p-3 bg-gray-950"><div class="flex justify-between"><span class="text-gremlin-500 font-medium">'+i.type+'</span><span class="text-xs text-gray-500">'+(i.created_at||'').slice(0,19)+'</span></div><p class="mt-1">'+(i.title||'')+'</p></div>').join('')}catch(e){log(e.message)}}
+async function saveProfile(){try{await api('/profile',{method:'POST',body:JSON.stringify({niche:document.getElementById('cfg-niche').value,llm_provider:document.getElementById('cfg-llm').value})});log('Perfil guardado');refreshStatus();alert('Guardado')}catch(e){alert(e.message)}}
+async function loadConfig(){try{const p=await api('/profile');document.getElementById('cfg-niche').value=p.niche||'';document.getElementById('cfg-llm').value=p.llm_provider||'openai';const pub=await api('/config/public');document.getElementById('providers-status').innerHTML='<div>OpenAI: '+(pub.openai_configured?'✅':'❌')+'</div><div>Anthropic: '+(pub.anthropic_configured?'✅':'❌')+'</div><div>xAI: '+(pub.xai_configured?'✅':'❌')+'</div><div>ElevenLabs: '+(pub.elevenlabs_configured?'✅':'❌')+'</div>'}catch(e){log(e.message)}}
+refreshStatus();loadConfig();loadLibrary();
+</script>
 </body>
 </html>
