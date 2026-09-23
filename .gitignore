@@ -35,3 +35,7 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+# Node
+node_modules/
+video_editor/node_modules/
