@@ -8,187 +8,234 @@
   :root { --bg:#0f1115; --panel:#12151c; --line:#242830; --btn:#232a37; }
   * { box-sizing: border-box; }
   body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:#e6e6e6}
-  header{padding:12px 16px;background:#161a21;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  main{display:grid;grid-template-columns:260px 1fr 260px;height:calc(100vh - 56px)}
-  .panel{background:var(--panel);border-right:1px solid var(--line);padding:12px;overflow:auto}
+  header{padding:10px 14px;background:#161a21;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  main{display:grid;grid-template-columns:240px 1fr 220px;height:calc(100vh - 52px)}
+  .panel{background:var(--panel);border-right:1px solid var(--line);padding:10px;overflow:auto}
   .panel.right{border-right:none;border-left:1px solid var(--line)}
-  .canvas{background:#0b0e13;padding:12px;overflow:auto}
-  .track{border:1px solid #222;margin:8px 0;background:#10151d;padding:8px;border-radius:8px}
-  .clip{display:inline-block;background:#1e3a5f;border:1px solid #3b82f6;border-radius:6px;padding:6px 8px;margin:4px 4px 4px 0;font-size:12px;cursor:pointer}
+  .canvas{background:#0b0e13;padding:10px;overflow:auto}
+  .track{border:1px solid #222;margin:6px 0;background:#10151d;padding:8px;border-radius:8px;min-height:48px}
+  .clip{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;border:1px solid #3b82f6;border-radius:6px;padding:6px 8px;margin:4px 4px 4px 0;font-size:11px;cursor:grab;user-select:none}
   .clip.selected{outline:2px solid #60a5fa}
-  button{background:var(--btn);border:1px solid #2f3747;color:#e6e6e6;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px}
+  .clip.dragging{opacity:.5}
+  button{background:var(--btn);border:1px solid #2f3747;color:#e6e6e6;padding:6px 9px;border-radius:8px;cursor:pointer;font-size:12px}
   button:hover{background:#2a3342}
   button.primary{background:#1d4ed8;border-color:#2563eb}
-  input{background:#0f131b;border:1px solid #2a3140;color:#e6e6e6;padding:6px 8px;border-radius:6px}
+  input{background:#0f131b;border:1px solid #2a3140;color:#e6e6e6;padding:5px 7px;border-radius:6px}
   .media-item{padding:6px 8px;border:1px solid #222;border-radius:6px;margin:4px 0;font-size:12px;cursor:pointer}
-  .media-item:hover,.media-item.selected{border-color:#3b82f6}
-  .media-item.selected{background:#152033}
-  h3{margin:12px 0 8px;font-size:14px;opacity:.9}
-  pre{margin-top:12px;background:#0a0d12;padding:8px;border:1px solid #222;max-height:160px;overflow:auto;font-size:11px}
-  .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-  label{font-size:12px;opacity:.8;display:block;margin-top:8px}
+  .media-item.selected{border-color:#60a5fa;background:#152033}
+  h3{margin:10px 0 6px;font-size:13px;opacity:.9}
+  pre{margin-top:8px;background:#0a0d12;padding:8px;border:1px solid #222;max-height:120px;overflow:auto;font-size:11px}
+  .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+  label{font-size:12px;opacity:.8;display:block;margin-top:6px}
+  .scrub{width:100%;margin-top:8px}
+  .playhead-info{font-size:12px;opacity:.8}
+  #framePreview{max-width:100%;max-height:160px;background:#000;border:1px solid #222;margin-top:6px}
 </style>
 </head>
 <body>
 <header>
   <strong>Editor local</strong>
-  <span style="opacity:.6;font-size:12px">localhost:3000</span>
-  <button id="newProj" class="primary">Nuevo proyecto</button>
-  <input id="projId" placeholder="project id" style="width:240px">
+  <button id="newProj" class="primary">Nuevo</button>
+  <input id="projId" placeholder="project id" style="width:220px">
   <button id="loadProj">Cargar</button>
-  <button id="refresh">Refrescar</button>
+  <button id="refresh">↻</button>
 </header>
 <main>
   <div class="panel">
     <h3>Biblioteca</h3>
-    <button id="importBtn">Importar medio</button>
+    <button id="importBtn">Importar</button>
     <input type="file" id="fileInp" style="display:none" multiple accept="video/*,audio/*">
     <div id="mediaList"></div>
-    <h3>Complementos</h3>
-    <div id="plugins" style="font-size:12px;opacity:.85"></div>
+    <h3>Plugins</h3>
+    <div id="plugins" style="font-size:11px;opacity:.85"></div>
   </div>
   <div class="canvas">
-    <h3>Previsualización</h3>
-    <video id="preview" controls style="width:100%;max-height:280px;background:#000;border:1px solid #222"></video>
-    <h3>Línea de tiempo</h3>
+    <h3>Preview (timeline)</h3>
+    <video id="preview" controls style="width:100%;max-height:200px;background:#000;border:1px solid #222"></video>
+    <img id="framePreview" alt="frame" style="display:none">
+    <div class="row">
+      <span class="playhead-info">t = <span id="tVal">0.00</span>s / <span id="durVal">0</span>s</span>
+      <input type="range" id="scrub" class="scrub" min="0" max="100" step="0.1" value="0" style="flex:1">
+      <button id="btnFrame">Frame</button>
+    </div>
+    <h3>Timeline (arrastrá para reordenar)</h3>
     <div id="timeline"></div>
     <div class="row">
-      <button id="addClip">Añadir clip → v1</button>
-      <button id="addClipAudio">Añadir → a1</button>
-      <button id="cutClip">Cortar (mitad)</button>
-      <button id="fadeIn">+ Fade in</button>
-      <button id="fadeOut">+ Fade out</button>
+      <button id="addClip">→ v1</button>
+      <button id="addClipAudio">→ a1</button>
+      <button id="cutClip">Cortar</button>
+      <button id="delClip">Borrar+ripple</button>
+      <button id="fadeIn">Fade in</button>
+      <button id="crossfade">Crossfade→</button>
+      <button id="pack">Cerrar gaps</button>
       <button id="renderBtn" class="primary">Render</button>
     </div>
     <pre id="log"></pre>
   </div>
   <div class="panel right">
-    <h3>Propiedades</h3>
+    <h3>Export</h3>
     <label>Ancho <input id="width" type="number" value="1280" style="width:100%"></label>
     <label>Alto <input id="height" type="number" value="720" style="width:100%"></label>
-    <h3>Clip seleccionado</h3>
-    <div id="clipInfo" style="font-size:12px;opacity:.85;white-space:pre-wrap">Ninguno</div>
-    <h3>API agente</h3>
-    <div style="font-size:11px;opacity:.7;line-height:1.5">POST /api/projects<br>POST /api/media/import<br>POST /api/timeline/clips<br>POST /api/timeline/cut<br>POST /api/timeline/effects<br>POST /api/render<br>GET /api/plugins</div>
+    <h3>Clip</h3>
+    <div id="clipInfo" style="font-size:11px;opacity:.85;white-space:pre-wrap">—</div>
   </div>
 </main>
 <script>
-const log = (...a) => {
-  const el = document.getElementById('log');
-  el.textContent += a.map(x => typeof x === 'object' ? JSON.stringify(x) : x).join(' ') + '\n';
-  el.scrollTop = el.scrollHeight;
-};
+const log = (...a) => { const el = document.getElementById('log'); el.textContent += a.map(x => typeof x === 'object' ? JSON.stringify(x) : x).join(' ') + '\n'; el.scrollTop = el.scrollHeight; };
 let projectId = localStorage.getItem('pid') || '';
-let project = null, selectedMediaId = null, selectedClipId = null;
+let project = null, selectedMediaId = null, selectedClipId = null, timelineDur = 0, dragId = null;
 document.getElementById('projId').value = projectId;
-
 async function api(path, opts = {}) {
   const r = await fetch(path, opts);
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 }
-
 document.getElementById('newProj').onclick = async () => {
   const j = await api('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Demo' }) });
   projectId = j.id; localStorage.setItem('pid', projectId);
-  document.getElementById('projId').value = projectId;
-  log('Nuevo proyecto', projectId); await load();
+  document.getElementById('projId').value = projectId; log('Proyecto', projectId); await load();
 };
 document.getElementById('loadProj').onclick = () => { projectId = document.getElementById('projId').value.trim(); localStorage.setItem('pid', projectId); load(); };
 document.getElementById('refresh').onclick = () => load();
 document.getElementById('importBtn').onclick = () => document.getElementById('fileInp').click();
 document.getElementById('fileInp').onchange = async (e) => {
-  if (!projectId) return alert('Crea o carga un proyecto primero');
+  if (!projectId) return alert('Proyecto primero');
   for (const f of e.target.files) {
     const fd = new FormData(); fd.append('file', f); fd.append('projectId', projectId);
     const r = await fetch('/api/media/import', { method: 'POST', body: fd });
     const j = await r.json();
-    if (!r.ok) { log('Error', j.error); continue; }
-    log('Importado', j.filename, `${(j.duration||0).toFixed(2)}s`);
+    if (!r.ok) log('Error', j.error); else log('Import', j.filename, (j.duration||0).toFixed(1)+'s');
   }
   await load();
 };
+async function addClip(trackId) {
+  if (!selectedMediaId) return alert('Seleccioná un medio');
+  const j = await api('/api/timeline/clips', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, trackId, mediaId: selectedMediaId }) });
+  log('Clip', j.clipId); await load();
+}
 document.getElementById('addClip').onclick = () => addClip('v1');
 document.getElementById('addClipAudio').onclick = () => addClip('a1');
-async function addClip(trackId) {
-  if (!projectId) return alert('Proyecto requerido');
-  if (!selectedMediaId) return alert('Selecciona un medio');
-  const j = await api('/api/timeline/clips', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, trackId, mediaId: selectedMediaId }) });
-  log('Clip', j.clipId, trackId); await load();
-}
 document.getElementById('cutClip').onclick = async () => {
-  if (!selectedClipId) return alert('Selecciona un clip');
-  const clip = findClip(selectedClipId); if (!clip) return;
-  const j = await api('/api/timeline/cut', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: selectedClipId, atRelative: clip.duration / 2 }) });
-  log('Cortado', j.left?.id, '+', j.right?.id); selectedClipId = j.left?.id; await load();
+  const clip = findClip(selectedClipId); if (!clip) return alert('Seleccioná clip');
+  await api('/api/timeline/cut', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: selectedClipId, atRelative: clip.duration / 2 }) });
+  log('Cortado'); await load();
 };
-async function addEffect(effectId) {
-  if (!selectedClipId) return alert('Selecciona un clip');
-  await api('/api/timeline/effects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: selectedClipId, effectId, params: { duration: 1 } }) });
-  log('Efecto', effectId); await load();
-}
-document.getElementById('fadeIn').onclick = () => addEffect('effect.fade_in');
-document.getElementById('fadeOut').onclick = () => addEffect('effect.fade_out');
+document.getElementById('delClip').onclick = async () => {
+  if (!selectedClipId) return alert('Seleccioná clip');
+  await api('/api/timeline/clips/' + selectedClipId + '?projectId=' + encodeURIComponent(projectId) + '&ripple=true', { method: 'DELETE' });
+  selectedClipId = null; log('Borrado+ripple'); await load();
+};
+document.getElementById('fadeIn').onclick = async () => {
+  if (!selectedClipId) return alert('Seleccioná clip');
+  await api('/api/timeline/effects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: selectedClipId, effectId: 'effect.fade_in', params: { duration: 1 } }) });
+  log('fade_in'); await load();
+};
+document.getElementById('crossfade').onclick = async () => {
+  const v = project?.timeline?.tracks?.find(t => t.id === 'v1');
+  if (!v || v.clips.length < 2) return alert('Necesitás ≥2 clips en v1');
+  const sorted = [...v.clips].sort((a,b)=>a.start-b.start);
+  let from = selectedClipId ? sorted.find(c => c.id === selectedClipId) : sorted[0];
+  let idx = sorted.findIndex(c => c.id === from.id);
+  if (idx < 0 || idx >= sorted.length - 1) idx = 0;
+  from = sorted[idx]; const to = sorted[idx + 1];
+  await api('/api/timeline/transitions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, fromClipId: from.id, toClipId: to.id, transitionId: 'transition.crossfade', duration: 1 }) });
+  log('crossfade', from.filename, '→', to.filename); await load();
+};
+document.getElementById('pack').onclick = async () => {
+  await api('/api/timeline/ripple', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, trackId: 'v1' }) });
+  log('Gaps cerrados'); await load();
+};
 document.getElementById('renderBtn').onclick = async () => {
-  if (!projectId) return alert('Proyecto requerido');
-  const j = await api('/api/render', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, width: +document.getElementById('width').value, height: +document.getElementById('height').value }) });
+  const j = await api('/api/render', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, width: +width.value, height: +height.value }) });
   log('Render', j.jobId);
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 90; i++) {
     await new Promise(r => setTimeout(r, 1000));
     const st = await api('/api/render/' + j.jobId);
-    log('Job', st.status, st.url || st.error || '');
-    if (st.status === 'done') { if (st.url) document.getElementById('preview').src = st.url; break; }
+    log(st.status, st.url || st.error || '');
+    if (st.status === 'done') { if (st.url) { preview.src = st.url; framePreview.style.display = 'none'; } break; }
     if (st.status === 'error') break;
   }
 };
+document.getElementById('scrub').oninput = () => { tVal.textContent = (+scrub.value).toFixed(2); };
+document.getElementById('btnFrame').onclick = async () => {
+  const t = +scrub.value;
+  framePreview.style.display = 'block';
+  framePreview.src = `/api/preview/frame?projectId=${encodeURIComponent(projectId)}&t=${t}&_=${Date.now()}`;
+  log('Frame t=', t.toFixed(2));
+};
 function findClip(id) {
-  if (!project) return null;
+  if (!project || !id) return null;
   for (const t of project.timeline.tracks) { const c = t.clips.find(x => x.id === id); if (c) return c; }
   return null;
 }
 function renderMedia() {
-  const el = document.getElementById('mediaList'); el.innerHTML = '';
+  mediaList.innerHTML = '';
   (project?.media || []).forEach(m => {
     const d = document.createElement('div');
     d.className = 'media-item' + (m.id === selectedMediaId ? ' selected' : '');
-    d.textContent = `${m.filename} · ${(m.duration || 0).toFixed(1)}s`;
-    d.onclick = () => { selectedMediaId = m.id; if (m.url) document.getElementById('preview').src = m.url; renderMedia(); };
-    el.appendChild(d);
+    d.textContent = `${m.filename} · ${(m.duration||0).toFixed(1)}s`;
+    d.onclick = () => { selectedMediaId = m.id; if (m.url) preview.src = m.url; renderMedia(); };
+    mediaList.appendChild(d);
   });
 }
 function renderTimeline() {
-  const el = document.getElementById('timeline'); el.innerHTML = '';
+  timeline.innerHTML = '';
   (project?.timeline?.tracks || []).forEach(t => {
-    const box = document.createElement('div'); box.className = 'track';
-    box.innerHTML = `<strong>${t.type.toUpperCase()} ${t.id}</strong> · ${t.clips.length} clips<br>`;
-    t.clips.forEach(c => {
+    const box = document.createElement('div');
+    box.className = 'track';
+    box.innerHTML = `<strong>${t.type.toUpperCase()} ${t.id}</strong><br>`;
+    const sorted = [...t.clips].sort((a,b)=>a.start-b.start);
+    sorted.forEach(c => {
       const chip = document.createElement('span');
       chip.className = 'clip' + (c.id === selectedClipId ? ' selected' : '');
-      chip.textContent = `${c.filename || 'clip'} @${c.start.toFixed(1)}s (${c.duration.toFixed(1)}s)`;
-      chip.onclick = () => {
+      chip.draggable = true;
+      chip.dataset.clipId = c.id;
+      chip.textContent = `${c.filename||'clip'} @${c.start.toFixed(1)} (${c.duration.toFixed(1)}s)`;
+      chip.onclick = (e) => {
+        e.stopPropagation();
         selectedClipId = c.id;
-        document.getElementById('clipInfo').textContent = `id=${c.id}\nstart=${c.start}\nin=${c.inPoint} out=${c.outPoint}\ndur=${c.duration}\neffects=${(c.effects||[]).map(e=>e.effectId).join(',')||'—'}`;
-        const media = (project.media || []).find(m => m.id === c.mediaId);
-        if (media?.url) document.getElementById('preview').src = media.url;
+        clipInfo.textContent = `id=${c.id}\nstart=${c.start}\nin=${c.inPoint} out=${c.outPoint}\ndur=${c.duration}`;
+        const media = (project.media||[]).find(m => m.id === c.mediaId);
+        if (media?.url) preview.src = media.url;
         renderTimeline();
       };
+      chip.ondragstart = (e) => { dragId = c.id; chip.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
+      chip.ondragend = () => { chip.classList.remove('dragging'); dragId = null; };
       box.appendChild(chip);
     });
-    el.appendChild(box);
+    box.ondragover = (e) => e.preventDefault();
+    box.ondrop = async (e) => {
+      e.preventDefault();
+      if (!dragId || t.id !== 'v1') return;
+      const ids = sorted.map(c => c.id);
+      const from = ids.indexOf(dragId);
+      if (from < 0) return;
+      const target = e.target.closest('.clip');
+      let to = target ? ids.indexOf(target.dataset.clipId) : ids.length - 1;
+      if (to < 0) to = ids.length - 1;
+      ids.splice(from, 1); ids.splice(to, 0, dragId);
+      await api('/api/timeline/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: dragId, order: ids }) });
+      log('Reordenado'); await load();
+    };
+    timeline.appendChild(box);
   });
 }
 async function loadPlugins() {
   try {
     const j = await api('/api/plugins');
-    document.getElementById('plugins').innerHTML = (j.plugins || []).map(p => `<div><code>${p.id}</code> — ${p.name}</div>`).join('') || 'Sin plugins';
-  } catch (e) { document.getElementById('plugins').textContent = e.message; }
+    plugins.innerHTML = (j.plugins||[]).map(p => `<div><code>${p.id}</code></div>`).join('') || '—';
+  } catch (e) { plugins.textContent = e.message; }
 }
 async function load() {
   if (!projectId) return;
   try {
     project = await api('/api/projects/' + projectId);
-    log('Cargado', project.name, 'media:', project.media?.length);
+    const info = await api('/api/preview/info?projectId=' + encodeURIComponent(projectId)).catch(() => ({ duration: 0 }));
+    timelineDur = info.duration || 0;
+    durVal.textContent = timelineDur.toFixed(1);
+    scrub.max = Math.max(timelineDur, 0.1);
+    log('Cargado', project.name);
     renderMedia(); renderTimeline();
   } catch (e) { log('Error', e.message); }
 }
