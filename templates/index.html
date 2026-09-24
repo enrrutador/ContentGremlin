@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ContentGremlin</title>
+<style>
+:root{--bg:#0c0e12;--panel:#141820;--border:#252b36;--text:#e8eaed;--muted:#9aa3b2;--accent:#3b82f6;--ok:#22c55e}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--border)}
+header h1{font-size:16px;margin:0}.badges{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.badge{font-size:11px;padding:4px 8px;border-radius:999px;background:#1a2030;border:1px solid var(--border);color:var(--muted)}
+.badge.on{border-color:var(--ok);color:var(--ok)}.badge.off{border-color:#7f1d1d;color:#fca5a5}
+nav{display:flex;gap:4px;padding:8px 12px;background:#10141c;border-bottom:1px solid var(--border);flex-wrap:wrap}
+nav button{background:transparent;border:1px solid transparent;color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px}
+nav button.active{color:var(--text);background:#1e293b;border-color:var(--border)}
+main{padding:16px;max-width:1100px;margin:0 auto}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
+.panel h2{margin:0 0 8px;font-size:15px}.panel p,.panel li{color:var(--muted);font-size:13px;line-height:1.5}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+input,textarea{width:100%;background:#0c0e12;border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px}
+textarea{min-height:100px;font-family:ui-monospace,monospace}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+button.btn{background:#1e293b;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+button.btn.primary{background:var(--accent);border-color:#2563eb}
+pre{background:#0a0c10;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11px;overflow:auto;max-height:280px;color:#cbd5e1}
+iframe.editor-frame{width:100%;height:calc(100vh - 140px);border:1px solid var(--border);border-radius:12px;background:#000}
+.hidden{display:none}.step{display:flex;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:#0f131a;margin-bottom:8px}
+.step n{flex:0 0 24px;height:24px;border-radius:50%;background:#1e293b;display:grid;place-items:center;font-size:12px;color:var(--accent)}
+a{color:#93c5fd}
+</style>
+</head>
+<body>
+<header>
+<h1>ContentGremlin</h1>
+<span style="font-size:12px;color:var(--muted)">Generar → Montar → Subir</span>
+<div class="badges">
+<span class="badge" id="bGremlin">API …</span>
+<span class="badge" id="bEditor">Editor …</span>
+<span class="badge" id="bMode">mode …</span>
+</div>
+</header>
+<nav>
+<button class="active" data-tab="home">Inicio</button>
+<button data-tab="pipeline">Pipeline</button>
+<button data-tab="editor">Editor</button>
+<button data-tab="library">Biblioteca</button>
+<button data-tab="config">Config</button>
+<button data-tab="agents">Agentes</button>
+</nav>
+<main>
+<section id="tab-home">
+<div class="panel"><h2>Camino feliz</h2>
+<div class="step"><n>1</n><div><strong>Config</strong><p>LLM en .env · modo en Config</p></div></div>
+<div class="step"><n>2</n><div><strong>Pipeline</strong><p>Canal → ideas → script → super pipeline</p></div></div>
+<div class="step"><n>3</n><div><strong>Editor</strong><p>Montaje en :3000</p></div></div>
+<div class="step"><n>4</n><div><strong>Upload</strong><p>Solo con permiso y YouTube OK</p></div></div>
+<div class="row"><button class="btn primary" onclick="showTab('pipeline')">Pipeline</button>
+<button class="btn" onclick="showTab('editor')">Editor</button>
+<a href="/docs" target="_blank">OpenAPI</a></div></div>
+</section>
+<section id="tab-pipeline" class="hidden">
+<div class="panel"><h2>1. Canal</h2>
+<label>URL o @handle</label><input id="channelUrl" placeholder="https://www.youtube.com/@..."/>
+<div class="row"><button class="btn primary" id="btnAnalyze">Analizar</button></div></div>
+<div class="panel"><h2>2. Ideas → Script</h2>
+<div class="row"><button class="btn" id="btnIdeas">Ideas</button>
+<button class="btn" id="btnScript">Script (idea #1)</button></div>
+<label>Idea JSON</label><textarea id="ideaJson"></textarea>
+<label>Script</label><textarea id="scriptText" style="min-height:160px"></textarea></div>
+<div class="panel"><h2>3. Producir</h2>
+<label><input type="checkbox" id="openEditor" checked/> Abrir en editor</label>
+<label><input type="checkbox" id="burnSubs"/> Burn subtítulos</label>
+<label>Slug</label><input id="titleSlug" value="demo1"/>
+<div class="row"><button class="btn primary" id="btnSuper">Super pipeline</button>
+<button class="btn" id="btnOpenEd">open_in_editor</button></div></div>
+<div class="panel"><h2>Salida</h2><pre id="out">—</pre></div>
+</section>
+<section id="tab-editor" class="hidden">
+<div class="panel"><h2>Editor local</h2>
+<p>Si no carga: <code>cd video_editor && npm start</code> o <code>./start.sh</code></p>
+<div class="row"><a class="btn" href="http://127.0.0.1:3000" target="_blank">Nueva pestaña</a>
+<button class="btn" id="btnReloadEd">Recargar</button></div></div>
+<iframe class="editor-frame" id="edFrame" src="http://127.0.0.1:3000" title="Editor"></iframe>
+</section>
+<section id="tab-library" class="hidden">
+<div class="panel"><h2>Biblioteca</h2>
+<div class="row"><button class="btn" id="btnLib">Actualizar</button></div>
+<pre id="libOut">—</pre></div>
+</section>
+<section id="tab-config" class="hidden">
+<div class="panel"><h2>Modo</h2>
+<div class="row"><button class="btn" data-mode="supervised">Supervised</button>
+<button class="btn" data-mode="autonomous">Autonomous</button></div></div>
+<div class="panel"><h2>Perfil</h2>
+<label>Nicho</label><input id="cfgNiche"/>
+<label>Idioma</label><input id="cfgLang" value="es"/>
+<label>Tono</label><input id="cfgTone"/>
+<div class="row"><button class="btn primary" id="btnSaveProfile">Guardar</button></div>
+<p>API keys en <code>.env</code></p></div>
+<div class="panel"><h2>Estado</h2><pre id="statusOut">—</pre></div>
+</section>
+<section id="tab-agents" class="hidden">
+<div class="panel"><h2>Agentes</h2>
+<p>API <code>:8000</code> · Editor <code>:3000</code></p>
+<ul>
+<li><a href="/api/agent/skills" target="_blank">/api/agent/skills</a></li>
+<li><code>skills/playbook_full.md</code></li>
+<li><code>video_editor/skills/</code></li>
+<li><code>docs/PRODUCT.md</code></li>
+</ul></div>
+</section>
+</main>
+<script>
+let analysisReport=null,lastIdeas=[],lastVideoPath=null;
+function showTab(id){
+document.querySelectorAll('main>section').forEach(s=>s.classList.add('hidden'));
+document.getElementById('tab-'+id).classList.remove('hidden');
+document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+function log(o){out.textContent=typeof o==='string'?o:JSON.stringify(o,null,2)}
+async function api(path,opts={}){
+const r=await fetch(path,{headers:{'Content-Type':'application/json',...(opts.headers||{})},...opts});
+const j=await r.json().catch(()=>({}));
+if(!r.ok)throw new Error(j.detail||j.error||r.statusText);
+return j;
+}
+async function refreshStatus(){
+try{
+const s=await api('/api/status');
+bGremlin.textContent='API OK';bGremlin.className='badge on';
+bMode.textContent='mode: '+s.mode;
+statusOut.textContent=JSON.stringify(s,null,2);
+cfgNiche.value=s.niche||'';
+}catch{bGremlin.textContent='API off';bGremlin.className='badge off'}
+try{
+const r=await fetch('http://127.0.0.1:3000/api/capabilities');
+if(r.ok){bEditor.textContent='Editor OK';bEditor.className='badge on'}
+else throw 0;
+}catch{bEditor.textContent='Editor off';bEditor.className='badge off'}
+}
+btnAnalyze.onclick=async()=>{try{log('Analizando…');const j=await api('/api/analyze_channel',{method:'POST',body:JSON.stringify({channel_url:channelUrl.value})});analysisReport=j.report||j.analysis_report||j;log(j)}catch(e){log(String(e.message||e))}};
+btnIdeas.onclick=async()=>{try{if(!analysisReport)return log('Analizá primero');log('Ideas…');const j=await api('/api/generate_ideas',{method:'POST',body:JSON.stringify({analysis_report:analysisReport,count:8})});lastIdeas=j.ideas||[];if(lastIdeas[0])ideaJson.value=JSON.stringify(lastIdeas[0],null,2);log(j)}catch(e){log(String(e.message||e))}};
+btnScript.onclick=async()=>{try{const idea=JSON.parse(ideaJson.value||'{}');log('Script…');const j=await api('/api/write_script',{method:'POST',body:JSON.stringify({idea})});scriptText.value=j.script||'';log(j)}catch(e){log(String(e.message||e))}};
+btnSuper.onclick=async()=>{try{let idea={};try{idea=JSON.parse(ideaJson.value||'{}')}catch{}log('Super pipeline…');const j=await api('/api/super_pipeline',{method:'POST',body:JSON.stringify({script:scriptText.value,title:titleSlug.value||'demo1',burn_subtitles:burnSubs.checked,open_in_editor:openEditor.checked,idea})});lastVideoPath=j.video_path;log(j);if(j.editor_url)edFrame.src=j.editor_url}catch(e){log(String(e.message||e))}};
+btnOpenEd.onclick=async()=>{try{if(!lastVideoPath)return log('Sin video_path');const j=await api('/api/open_in_editor',{method:'POST',body:JSON.stringify({video_path:lastVideoPath,name:titleSlug.value||'from-ui'})});log(j);if(j.editor_url)edFrame.src=j.editor_url;showTab('editor')}catch(e){log(String(e.message||e))}};
+btnLib.onclick=async()=>{try{libOut.textContent=JSON.stringify(await api('/api/library'),null,2)}catch(e){libOut.textContent=String(e.message||e)}};
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=async()=>{try{await api('/api/set_mode',{method:'POST',body:JSON.stringify({mode:b.dataset.mode})});refreshStatus()}catch(e){alert(e.message)}});
+btnSaveProfile.onclick=async()=>{try{await api('/api/profile',{method:'POST',body:JSON.stringify({niche:cfgNiche.value,language:cfgLang.value,tone:cfgTone.value})});refreshStatus();alert('OK')}catch(e){alert(e.message)}};
+btnReloadEd.onclick=()=>{edFrame.src=edFrame.src};
+refreshStatus();setInterval(refreshStatus,15000);
+</script>
+</body>
+</html>
