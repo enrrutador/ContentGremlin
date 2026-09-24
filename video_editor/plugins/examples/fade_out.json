@@ -1,13 +1,13 @@
 {
-  "id": "effect.fade_in",
-  "name": "Fundido de entrada",
+  "id": "effect.fade_out",
+  "name": "Fundido de salida",
   "version": "1.0.0",
   "category": "Efectos de video",
   "type": "effect",
-  "description": "Fade in from black at the start of the clip",
+  "description": "Fade out to black at the end of the clip",
   "params": {
     "duration": { "type": "number", "default": 1, "min": 0.1, "max": 10, "unit": "s" }
   },
-  "ffmpeg": { "filter": "fade=t=in:st=0:d={duration}" },
+  "ffmpeg": { "filter": "fade=t=out:st={start}:d={duration}" },
   "license": "MIT-compatible (FFmpeg filter)"
 }

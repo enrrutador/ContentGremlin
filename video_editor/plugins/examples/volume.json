@@ -1,0 +1,13 @@
+{
+  "id": "effect.volume",
+  "name": "Volumen",
+  "version": "1.0.0",
+  "category": "Audio y mezcla",
+  "type": "effect",
+  "description": "Adjust audio level for a clip (1.0 = original)",
+  "params": {
+    "level": { "type": "number", "default": 1, "min": 0, "max": 4 }
+  },
+  "ffmpeg": { "filter": "volume={level}" },
+  "license": "MIT-compatible (FFmpeg filter)"
+}

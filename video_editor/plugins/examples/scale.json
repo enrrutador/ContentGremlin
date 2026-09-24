@@ -1,0 +1,13 @@
+{
+  "id": "effect.scale",
+  "name": "Escala / zoom",
+  "version": "1.0.0",
+  "category": "Edición y transformación de clips",
+  "type": "effect",
+  "description": "Scale clip content by a zoom factor before padding to canvas",
+  "params": {
+    "zoom": { "type": "number", "default": 1, "min": 0.25, "max": 4 }
+  },
+  "ffmpeg": { "filter": "scale=iw*{zoom}:ih*{zoom}" },
+  "license": "MIT-compatible (FFmpeg filter)"
+}

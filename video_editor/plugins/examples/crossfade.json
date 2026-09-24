@@ -1,0 +1,13 @@
+{
+  "id": "transition.crossfade",
+  "name": "Fundido cruzado",
+  "version": "1.0.0",
+  "category": "Transiciones",
+  "type": "transition",
+  "description": "Crossfade between two adjacent clips (stored on timeline; applied at render when supported)",
+  "params": {
+    "duration": { "type": "number", "default": 1, "min": 0.1, "max": 5, "unit": "s" }
+  },
+  "ffmpeg": { "filter": "xfade=transition=fade:duration={duration}" },
+  "license": "MIT-compatible (FFmpeg filter)"
+}
