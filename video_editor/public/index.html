@@ -1,246 +1,96 @@
 <!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<title>Editor local — ContentGremlin</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="es"><head><meta charset="utf-8"><title>Editor</title>
 <style>
-  :root { --bg:#0f1115; --panel:#12151c; --line:#242830; --btn:#232a37; }
-  * { box-sizing: border-box; }
-  body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:#e6e6e6}
-  header{padding:10px 14px;background:#161a21;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  main{display:grid;grid-template-columns:240px 1fr 220px;height:calc(100vh - 52px)}
-  .panel{background:var(--panel);border-right:1px solid var(--line);padding:10px;overflow:auto}
-  .panel.right{border-right:none;border-left:1px solid var(--line)}
-  .canvas{background:#0b0e13;padding:10px;overflow:auto}
-  .track{border:1px solid #222;margin:6px 0;background:#10151d;padding:8px;border-radius:8px;min-height:48px}
-  .clip{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;border:1px solid #3b82f6;border-radius:6px;padding:6px 8px;margin:4px 4px 4px 0;font-size:11px;cursor:grab;user-select:none}
-  .clip.selected{outline:2px solid #60a5fa}
-  .clip.dragging{opacity:.5}
-  button{background:var(--btn);border:1px solid #2f3747;color:#e6e6e6;padding:6px 9px;border-radius:8px;cursor:pointer;font-size:12px}
-  button:hover{background:#2a3342}
-  button.primary{background:#1d4ed8;border-color:#2563eb}
-  input{background:#0f131b;border:1px solid #2a3140;color:#e6e6e6;padding:5px 7px;border-radius:6px}
-  .media-item{padding:6px 8px;border:1px solid #222;border-radius:6px;margin:4px 0;font-size:12px;cursor:pointer}
-  .media-item.selected{border-color:#60a5fa;background:#152033}
-  h3{margin:10px 0 6px;font-size:13px;opacity:.9}
-  pre{margin-top:8px;background:#0a0d12;padding:8px;border:1px solid #222;max-height:120px;overflow:auto;font-size:11px}
-  .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
-  label{font-size:12px;opacity:.8;display:block;margin-top:6px}
-  .scrub{width:100%;margin-top:8px}
-  .playhead-info{font-size:12px;opacity:.8}
-  #framePreview{max-width:100%;max-height:160px;background:#000;border:1px solid #222;margin-top:6px}
-</style>
-</head>
-<body>
+body{margin:0;font-family:system-ui;background:#0f1115;color:#e6e6e6}
+header{padding:10px;background:#161a21;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+main{display:grid;grid-template-columns:220px 1fr 200px;height:calc(100vh - 48px)}
+.panel{padding:10px;background:#12151c;border-right:1px solid #242830;overflow:auto}
+.panel.right{border-right:none;border-left:1px solid #242830}
+.canvas{padding:10px;overflow:auto}
+button{background:#232a37;border:1px solid #2f3747;color:#e6e6e6;padding:6px 9px;border-radius:8px;cursor:pointer;font-size:12px}
+button.primary{background:#1d4ed8}
+input{background:#0f131b;border:1px solid #2a3140;color:#e6e6e6;padding:5px;border-radius:6px}
+.clip{display:inline-block;background:#1e3a5f;border:1px solid #3b82f6;border-radius:6px;padding:6px;margin:4px;font-size:11px;cursor:pointer}
+.clip.selected{outline:2px solid #60a5fa}
+.media-item{padding:6px;border:1px solid #222;margin:4px 0;font-size:12px;cursor:pointer}
+.media-item.selected{border-color:#60a5fa}
+.bar{height:8px;background:#1a2030;border-radius:4px;overflow:hidden;margin:6px 0}
+.bar>i{display:block;height:100%;background:#3b82f6;width:0%}
+pre{font-size:11px;max-height:100px;overflow:auto;background:#0a0d12;padding:8px}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.track{border:1px solid #222;margin:6px 0;padding:8px;background:#10151d;border-radius:8px}
+</style></head><body>
 <header>
-  <strong>Editor local</strong>
-  <button id="newProj" class="primary">Nuevo</button>
-  <input id="projId" placeholder="project id" style="width:220px">
-  <button id="loadProj">Cargar</button>
-  <button id="refresh">↻</button>
+<strong>Editor</strong>
+<button id="newProj" class="primary">Nuevo</button>
+<input id="projId" style="width:200px" placeholder="project id">
+<button id="loadProj">Cargar</button>
 </header>
 <main>
-  <div class="panel">
-    <h3>Biblioteca</h3>
-    <button id="importBtn">Importar</button>
-    <input type="file" id="fileInp" style="display:none" multiple accept="video/*,audio/*">
-    <div id="mediaList"></div>
-    <h3>Plugins</h3>
-    <div id="plugins" style="font-size:11px;opacity:.85"></div>
-  </div>
-  <div class="canvas">
-    <h3>Preview (timeline)</h3>
-    <video id="preview" controls style="width:100%;max-height:200px;background:#000;border:1px solid #222"></video>
-    <img id="framePreview" alt="frame" style="display:none">
-    <div class="row">
-      <span class="playhead-info">t = <span id="tVal">0.00</span>s / <span id="durVal">0</span>s</span>
-      <input type="range" id="scrub" class="scrub" min="0" max="100" step="0.1" value="0" style="flex:1">
-      <button id="btnFrame">Frame</button>
-    </div>
-    <h3>Timeline (arrastrá para reordenar)</h3>
-    <div id="timeline"></div>
-    <div class="row">
-      <button id="addClip">→ v1</button>
-      <button id="addClipAudio">→ a1</button>
-      <button id="cutClip">Cortar</button>
-      <button id="delClip">Borrar+ripple</button>
-      <button id="fadeIn">Fade in</button>
-      <button id="crossfade">Crossfade→</button>
-      <button id="pack">Cerrar gaps</button>
-      <button id="renderBtn" class="primary">Render</button>
-    </div>
-    <pre id="log"></pre>
-  </div>
-  <div class="panel right">
-    <h3>Export</h3>
-    <label>Ancho <input id="width" type="number" value="1280" style="width:100%"></label>
-    <label>Alto <input id="height" type="number" value="720" style="width:100%"></label>
-    <h3>Clip</h3>
-    <div id="clipInfo" style="font-size:11px;opacity:.85;white-space:pre-wrap">—</div>
-  </div>
+<div class="panel">
+<h3>Biblioteca</h3>
+<button id="importBtn">Importar</button>
+<input type="file" id="fileInp" multiple accept="video/*,audio/*" style="display:none">
+<div id="mediaList"></div>
+<h3>Gremlin</h3>
+<input id="gremlinPath" placeholder="/path/video.mp4" style="width:100%">
+<button id="btnGremlin">Import path</button>
+<div id="plugins" style="font-size:11px;margin-top:8px"></div>
+</div>
+<div class="canvas">
+<video id="preview" controls style="width:100%;max-height:200px;background:#000"></video>
+<div class="bar"><i id="progBar"></i></div>
+<div id="progText" style="font-size:11px;opacity:.7">—</div>
+<div class="row">
+<input type="range" id="scrub" min="0" max="100" step="0.1" value="0" style="flex:1">
+<button id="btnFrame">Frame</button>
+<button id="btnMontage">Preview montaje</button>
+</div>
+<div id="timeline"></div>
+<div class="row">
+<button id="addClip">→ v1</button>
+<button id="cutClip">Cortar</button>
+<button id="delClip">Borrar</button>
+<button id="fadeIn">Fade in</button>
+<button id="crossfade">Crossfade</button>
+<button id="renderBtn" class="primary">Render</button>
+<button id="btnOtio">OTIO↓</button>
+<button id="btnOtioIn">OTIO↑</button>
+</div>
+<pre id="log"></pre>
+</div>
+<div class="panel right">
+<label>W <input id="width" type="number" value="1280" style="width:100%"></label>
+<label>H <input id="height" type="number" value="720" style="width:100%"></label>
+<div id="clipInfo" style="font-size:11px;margin-top:10px">—</div>
+</div>
 </main>
 <script>
-const log = (...a) => { const el = document.getElementById('log'); el.textContent += a.map(x => typeof x === 'object' ? JSON.stringify(x) : x).join(' ') + '\n'; el.scrollTop = el.scrollHeight; };
-let projectId = localStorage.getItem('pid') || '';
-let project = null, selectedMediaId = null, selectedClipId = null, timelineDur = 0, dragId = null;
-document.getElementById('projId').value = projectId;
-async function api(path, opts = {}) {
-  const r = await fetch(path, opts);
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || r.statusText);
-  return j;
-}
-document.getElementById('newProj').onclick = async () => {
-  const j = await api('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Demo' }) });
-  projectId = j.id; localStorage.setItem('pid', projectId);
-  document.getElementById('projId').value = projectId; log('Proyecto', projectId); await load();
-};
-document.getElementById('loadProj').onclick = () => { projectId = document.getElementById('projId').value.trim(); localStorage.setItem('pid', projectId); load(); };
-document.getElementById('refresh').onclick = () => load();
-document.getElementById('importBtn').onclick = () => document.getElementById('fileInp').click();
-document.getElementById('fileInp').onchange = async (e) => {
-  if (!projectId) return alert('Proyecto primero');
-  for (const f of e.target.files) {
-    const fd = new FormData(); fd.append('file', f); fd.append('projectId', projectId);
-    const r = await fetch('/api/media/import', { method: 'POST', body: fd });
-    const j = await r.json();
-    if (!r.ok) log('Error', j.error); else log('Import', j.filename, (j.duration||0).toFixed(1)+'s');
-  }
-  await load();
-};
-async function addClip(trackId) {
-  if (!selectedMediaId) return alert('Seleccioná un medio');
-  const j = await api('/api/timeline/clips', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, trackId, mediaId: selectedMediaId }) });
-  log('Clip', j.clipId); await load();
-}
-document.getElementById('addClip').onclick = () => addClip('v1');
-document.getElementById('addClipAudio').onclick = () => addClip('a1');
-document.getElementById('cutClip').onclick = async () => {
-  const clip = findClip(selectedClipId); if (!clip) return alert('Seleccioná clip');
-  await api('/api/timeline/cut', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: selectedClipId, atRelative: clip.duration / 2 }) });
-  log('Cortado'); await load();
-};
-document.getElementById('delClip').onclick = async () => {
-  if (!selectedClipId) return alert('Seleccioná clip');
-  await api('/api/timeline/clips/' + selectedClipId + '?projectId=' + encodeURIComponent(projectId) + '&ripple=true', { method: 'DELETE' });
-  selectedClipId = null; log('Borrado+ripple'); await load();
-};
-document.getElementById('fadeIn').onclick = async () => {
-  if (!selectedClipId) return alert('Seleccioná clip');
-  await api('/api/timeline/effects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: selectedClipId, effectId: 'effect.fade_in', params: { duration: 1 } }) });
-  log('fade_in'); await load();
-};
-document.getElementById('crossfade').onclick = async () => {
-  const v = project?.timeline?.tracks?.find(t => t.id === 'v1');
-  if (!v || v.clips.length < 2) return alert('Necesitás ≥2 clips en v1');
-  const sorted = [...v.clips].sort((a,b)=>a.start-b.start);
-  let from = selectedClipId ? sorted.find(c => c.id === selectedClipId) : sorted[0];
-  let idx = sorted.findIndex(c => c.id === from.id);
-  if (idx < 0 || idx >= sorted.length - 1) idx = 0;
-  from = sorted[idx]; const to = sorted[idx + 1];
-  await api('/api/timeline/transitions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, fromClipId: from.id, toClipId: to.id, transitionId: 'transition.crossfade', duration: 1 }) });
-  log('crossfade', from.filename, '→', to.filename); await load();
-};
-document.getElementById('pack').onclick = async () => {
-  await api('/api/timeline/ripple', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, trackId: 'v1' }) });
-  log('Gaps cerrados'); await load();
-};
-document.getElementById('renderBtn').onclick = async () => {
-  const j = await api('/api/render', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, width: +width.value, height: +height.value }) });
-  log('Render', j.jobId);
-  for (let i = 0; i < 90; i++) {
-    await new Promise(r => setTimeout(r, 1000));
-    const st = await api('/api/render/' + j.jobId);
-    log(st.status, st.url || st.error || '');
-    if (st.status === 'done') { if (st.url) { preview.src = st.url; framePreview.style.display = 'none'; } break; }
-    if (st.status === 'error') break;
-  }
-};
-document.getElementById('scrub').oninput = () => { tVal.textContent = (+scrub.value).toFixed(2); };
-document.getElementById('btnFrame').onclick = async () => {
-  const t = +scrub.value;
-  framePreview.style.display = 'block';
-  framePreview.src = `/api/preview/frame?projectId=${encodeURIComponent(projectId)}&t=${t}&_=${Date.now()}`;
-  log('Frame t=', t.toFixed(2));
-};
-function findClip(id) {
-  if (!project || !id) return null;
-  for (const t of project.timeline.tracks) { const c = t.clips.find(x => x.id === id); if (c) return c; }
-  return null;
-}
-function renderMedia() {
-  mediaList.innerHTML = '';
-  (project?.media || []).forEach(m => {
-    const d = document.createElement('div');
-    d.className = 'media-item' + (m.id === selectedMediaId ? ' selected' : '');
-    d.textContent = `${m.filename} · ${(m.duration||0).toFixed(1)}s`;
-    d.onclick = () => { selectedMediaId = m.id; if (m.url) preview.src = m.url; renderMedia(); };
-    mediaList.appendChild(d);
-  });
-}
-function renderTimeline() {
-  timeline.innerHTML = '';
-  (project?.timeline?.tracks || []).forEach(t => {
-    const box = document.createElement('div');
-    box.className = 'track';
-    box.innerHTML = `<strong>${t.type.toUpperCase()} ${t.id}</strong><br>`;
-    const sorted = [...t.clips].sort((a,b)=>a.start-b.start);
-    sorted.forEach(c => {
-      const chip = document.createElement('span');
-      chip.className = 'clip' + (c.id === selectedClipId ? ' selected' : '');
-      chip.draggable = true;
-      chip.dataset.clipId = c.id;
-      chip.textContent = `${c.filename||'clip'} @${c.start.toFixed(1)} (${c.duration.toFixed(1)}s)`;
-      chip.onclick = (e) => {
-        e.stopPropagation();
-        selectedClipId = c.id;
-        clipInfo.textContent = `id=${c.id}\nstart=${c.start}\nin=${c.inPoint} out=${c.outPoint}\ndur=${c.duration}`;
-        const media = (project.media||[]).find(m => m.id === c.mediaId);
-        if (media?.url) preview.src = media.url;
-        renderTimeline();
-      };
-      chip.ondragstart = (e) => { dragId = c.id; chip.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
-      chip.ondragend = () => { chip.classList.remove('dragging'); dragId = null; };
-      box.appendChild(chip);
-    });
-    box.ondragover = (e) => e.preventDefault();
-    box.ondrop = async (e) => {
-      e.preventDefault();
-      if (!dragId || t.id !== 'v1') return;
-      const ids = sorted.map(c => c.id);
-      const from = ids.indexOf(dragId);
-      if (from < 0) return;
-      const target = e.target.closest('.clip');
-      let to = target ? ids.indexOf(target.dataset.clipId) : ids.length - 1;
-      if (to < 0) to = ids.length - 1;
-      ids.splice(from, 1); ids.splice(to, 0, dragId);
-      await api('/api/timeline/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: dragId, order: ids }) });
-      log('Reordenado'); await load();
-    };
-    timeline.appendChild(box);
-  });
-}
-async function loadPlugins() {
-  try {
-    const j = await api('/api/plugins');
-    plugins.innerHTML = (j.plugins||[]).map(p => `<div><code>${p.id}</code></div>`).join('') || '—';
-  } catch (e) { plugins.textContent = e.message; }
-}
-async function load() {
-  if (!projectId) return;
-  try {
-    project = await api('/api/projects/' + projectId);
-    const info = await api('/api/preview/info?projectId=' + encodeURIComponent(projectId)).catch(() => ({ duration: 0 }));
-    timelineDur = info.duration || 0;
-    durVal.textContent = timelineDur.toFixed(1);
-    scrub.max = Math.max(timelineDur, 0.1);
-    log('Cargado', project.name);
-    renderMedia(); renderTimeline();
-  } catch (e) { log('Error', e.message); }
-}
-loadPlugins();
-if (projectId) load();
-</script>
-</body>
-</html>
+const log=(...a)=>{logEl.textContent+=a.map(x=>typeof x==='object'?JSON.stringify(x):x).join(' ')+'\n'};
+const logEl=document.getElementById('log');
+let projectId=localStorage.getItem('pid')||'',project=null,selectedMediaId=null,selectedClipId=null;
+projId.value=projectId;
+async function api(path,opts={}){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.statusText);return j;}
+newProj.onclick=async()=>{const j=await api('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Demo'})});projectId=j.id;localStorage.setItem('pid',projectId);projId.value=projectId;await load();};
+loadProj.onclick=()=>{projectId=projId.value.trim();localStorage.setItem('pid',projectId);load();};
+importBtn.onclick=()=>fileInp.click();
+fileInp.onchange=async e=>{for(const f of e.target.files){const fd=new FormData();fd.append('file',f);fd.append('projectId',projectId);const r=await fetch('/api/media/import',{method:'POST',body:fd});log('import',await r.json());}await load();};
+btnGremlin.onclick=async()=>{const j=await api('/api/integrate/gremlin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'From path',mediaPaths:[gremlinPath.value.trim()],autoAssemble:true})});projectId=j.projectId;localStorage.setItem('pid',projectId);projId.value=projectId;await load();};
+addClip.onclick=async()=>{await api('/api/timeline/clips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,trackId:'v1',mediaId:selectedMediaId})});await load();};
+cutClip.onclick=async()=>{const c=findClip(selectedClipId);if(!c)return;await api('/api/timeline/cut',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,clipId:selectedClipId,atRelative:c.duration/2})});await load();};
+delClip.onclick=async()=>{await api('/api/timeline/clips/'+selectedClipId+'?projectId='+projectId+'&ripple=true',{method:'DELETE'});await load();};
+fadeIn.onclick=async()=>{await api('/api/timeline/effects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,clipId:selectedClipId,effectId:'effect.fade_in',params:{duration:1}})});await load();};
+crossfade.onclick=async()=>{const v=project.timeline.tracks.find(t=>t.id==='v1');const s=[...v.clips].sort((a,b)=>a.start-b.start);if(s.length<2)return;await api('/api/timeline/transitions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,fromClipId:s[0].id,toClipId:s[1].id,transitionId:'transition.crossfade',duration:1})});await load();};
+function setProg(p,t){progBar.style.width=(p||0)+'%';progText.textContent=t||p+'%';}
+renderBtn.onclick=async()=>{setProg(0,'queued');const j=await api('/api/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,width:+width.value,height:+height.value})});for(let i=0;i<120;i++){await new Promise(r=>setTimeout(r,800));const st=await api('/api/render/'+j.jobId);setProg(st.percent||(st.status==='done'?100:5),st.status+(st.phase?' · '+st.phase:''));if(st.status==='done'){if(st.url)preview.src=st.url;break;}if(st.status==='error')break;}};
+btnMontage.onclick=async()=>{setProg(10,'montage…');const j=await api('/api/preview/montage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId})});if(j.url)preview.src=j.url;setProg(100,'preview ok');};
+btnOtio.onclick=async()=>{const o=await api('/api/projects/'+projectId+'/otio');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(o,null,2)]));a.download='project.otio.json';a.click();};
+btnOtioIn.onclick=()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=async()=>{await api('/api/projects/'+projectId+'/otio/import',{method:'POST',headers:{'Content-Type':'application/json'},body:await inp.files[0].text()});await load();};inp.click();};
+btnFrame.onclick=()=>{preview.src='';const img=document.createElement('img');img.src='/api/preview/frame?projectId='+projectId+'&t='+scrub.value;};
+function findClip(id){if(!project||!id)return null;for(const t of project.timeline.tracks){const c=t.clips.find(x=>x.id===id);if(c)return c;}return null;}
+function renderMedia(){mediaList.innerHTML='';(project?.media||[]).forEach(m=>{const d=document.createElement('div');d.className='media-item'+(m.id===selectedMediaId?' selected':'');d.textContent=m.filename+' · '+(m.duration||0).toFixed(1)+'s';d.onclick=()=>{selectedMediaId=m.id;if(m.url)preview.src=m.url;renderMedia();};mediaList.appendChild(d);});}
+function renderTimeline(){timeline.innerHTML='';(project?.timeline?.tracks||[]).forEach(t=>{const box=document.createElement('div');box.className='track';box.innerHTML='<strong>'+t.type+' '+t.id+'</strong><br>';t.clips.forEach(c=>{const chip=document.createElement('span');chip.className='clip'+(c.id===selectedClipId?' selected':'');chip.textContent=(c.filename||'clip')+' @'+c.start.toFixed(1);chip.onclick=()=>{selectedClipId=c.id;clipInfo.textContent=JSON.stringify(c,null,1);renderTimeline();};box.appendChild(chip);});timeline.appendChild(box);});}
+async function load(){if(!projectId)return;project=await api('/api/projects/'+projectId);renderMedia();renderTimeline();log('loaded',project.name);}
+api('/api/plugins').then(j=>{plugins.innerHTML=(j.plugins||[]).map(p=>'<div><code>'+p.id+'</code></div>').join('');}).catch(()=>{});
+if(projectId)load();
+</script></body></html>
