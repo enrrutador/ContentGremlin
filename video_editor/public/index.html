@@ -17,7 +17,7 @@ input{background:#0f131b;border:1px solid #2a3140;color:#e6e6e6;padding:5px;bord
 .bar{height:8px;background:#1a2030;border-radius:4px;overflow:hidden;margin:6px 0}
 .bar>i{display:block;height:100%;background:#3b82f6;width:0%}
 pre{font-size:11px;max-height:100px;overflow:auto;background:#0a0d12;padding:8px}
-.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
 .track{border:1px solid #222;margin:6px 0;padding:8px;background:#10151d;border-radius:8px}
 </style></head><body>
 <header>
@@ -25,6 +25,7 @@ pre{font-size:11px;max-height:100px;overflow:auto;background:#0a0d12;padding:8px
 <button id="newProj" class="primary">Nuevo</button>
 <input id="projId" style="width:200px" placeholder="project id">
 <button id="loadProj">Cargar</button>
+<span id="caps" style="font-size:11px;opacity:.7"></span>
 </header>
 <main>
 <div class="panel">
@@ -45,10 +46,14 @@ pre{font-size:11px;max-height:100px;overflow:auto;background:#0a0d12;padding:8px
 <input type="range" id="scrub" min="0" max="100" step="0.1" value="0" style="flex:1">
 <button id="btnFrame">Frame</button>
 <button id="btnMontage">Preview montaje</button>
+<button id="btnProxy">Proxy</button>
+<button id="btnFadeKF">Opacity in/out</button>
+<label style="font-size:11px"><input type="checkbox" id="hwaccel"> GPU</label>
 </div>
 <div id="timeline"></div>
 <div class="row">
 <button id="addClip">→ v1</button>
+<button id="addClipV2">→ v2</button>
 <button id="cutClip">Cortar</button>
 <button id="delClip">Borrar</button>
 <button id="fadeIn">Fade in</button>
@@ -69,6 +74,7 @@ pre{font-size:11px;max-height:100px;overflow:auto;background:#0a0d12;padding:8px
 const log=(...a)=>{logEl.textContent+=a.map(x=>typeof x==='object'?JSON.stringify(x):x).join(' ')+'\n'};
 const logEl=document.getElementById('log');
 let projectId=localStorage.getItem('pid')||'',project=null,selectedMediaId=null,selectedClipId=null;
+const q=new URLSearchParams(location.search).get('projectId');if(q){projectId=q;localStorage.setItem('pid',q);}
 projId.value=projectId;
 async function api(path,opts={}){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.statusText);return j;}
 newProj.onclick=async()=>{const j=await api('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Demo'})});projectId=j.id;localStorage.setItem('pid',projectId);projId.value=projectId;await load();};
@@ -76,21 +82,26 @@ loadProj.onclick=()=>{projectId=projId.value.trim();localStorage.setItem('pid',p
 importBtn.onclick=()=>fileInp.click();
 fileInp.onchange=async e=>{for(const f of e.target.files){const fd=new FormData();fd.append('file',f);fd.append('projectId',projectId);const r=await fetch('/api/media/import',{method:'POST',body:fd});log('import',await r.json());}await load();};
 btnGremlin.onclick=async()=>{const j=await api('/api/integrate/gremlin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'From path',mediaPaths:[gremlinPath.value.trim()],autoAssemble:true})});projectId=j.projectId;localStorage.setItem('pid',projectId);projId.value=projectId;await load();};
-addClip.onclick=async()=>{await api('/api/timeline/clips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,trackId:'v1',mediaId:selectedMediaId})});await load();};
+async function addTo(trackId){await api('/api/timeline/clips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,trackId,mediaId:selectedMediaId})});await load();}
+addClip.onclick=()=>addTo('v1');
+addClipV2.onclick=()=>addTo('v2');
 cutClip.onclick=async()=>{const c=findClip(selectedClipId);if(!c)return;await api('/api/timeline/cut',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,clipId:selectedClipId,atRelative:c.duration/2})});await load();};
 delClip.onclick=async()=>{await api('/api/timeline/clips/'+selectedClipId+'?projectId='+projectId+'&ripple=true',{method:'DELETE'});await load();};
 fadeIn.onclick=async()=>{await api('/api/timeline/effects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,clipId:selectedClipId,effectId:'effect.fade_in',params:{duration:1}})});await load();};
 crossfade.onclick=async()=>{const v=project.timeline.tracks.find(t=>t.id==='v1');const s=[...v.clips].sort((a,b)=>a.start-b.start);if(s.length<2)return;await api('/api/timeline/transitions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,fromClipId:s[0].id,toClipId:s[1].id,transitionId:'transition.crossfade',duration:1})});await load();};
 function setProg(p,t){progBar.style.width=(p||0)+'%';progText.textContent=t||p+'%';}
-renderBtn.onclick=async()=>{setProg(0,'queued');const j=await api('/api/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,width:+width.value,height:+height.value})});for(let i=0;i<120;i++){await new Promise(r=>setTimeout(r,800));const st=await api('/api/render/'+j.jobId);setProg(st.percent||(st.status==='done'?100:5),st.status+(st.phase?' · '+st.phase:''));if(st.status==='done'){if(st.url)preview.src=st.url;break;}if(st.status==='error')break;}};
+renderBtn.onclick=async()=>{setProg(0,'queued');const j=await api('/api/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,width:+width.value,height:+height.value,useHwAccel:!!hwaccel.checked})});for(let i=0;i<120;i++){await new Promise(r=>setTimeout(r,800));const st=await api('/api/render/'+j.jobId);setProg(st.percent||(st.status==='done'?100:5),st.status+(st.phase?' · '+st.phase:''));if(st.status==='done'){if(st.url)preview.src=st.url;break;}if(st.status==='error')break;}};
 btnMontage.onclick=async()=>{setProg(10,'montage…');const j=await api('/api/preview/montage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId})});if(j.url)preview.src=j.url;setProg(100,'preview ok');};
+btnProxy.onclick=async()=>{if(!selectedMediaId)return alert('Medio');setProg(5,'proxy…');const j=await api('/api/media/proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,mediaId:selectedMediaId})});if(j.proxyUrl)preview.src=j.proxyUrl;setProg(100,'proxy ok');log(j);};
+btnFadeKF.onclick=async()=>{if(!selectedClipId)return alert('Clip');const dur=findClip(selectedClipId)?.duration||2;await api('/api/timeline/keyframes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,clipId:selectedClipId,keyframes:[{t:0,opacity:0},{t:0.5,opacity:1},{t:Math.max(0.5,dur-0.5),opacity:1},{t:dur,opacity:0}]})});log('keyframes');await load();};
 btnOtio.onclick=async()=>{const o=await api('/api/projects/'+projectId+'/otio');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(o,null,2)]));a.download='project.otio.json';a.click();};
 btnOtioIn.onclick=()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=async()=>{await api('/api/projects/'+projectId+'/otio/import',{method:'POST',headers:{'Content-Type':'application/json'},body:await inp.files[0].text()});await load();};inp.click();};
-btnFrame.onclick=()=>{preview.src='';const img=document.createElement('img');img.src='/api/preview/frame?projectId='+projectId+'&t='+scrub.value;};
+btnFrame.onclick=()=>{preview.src='/api/preview/frame?projectId='+projectId+'&t='+scrub.value;};
 function findClip(id){if(!project||!id)return null;for(const t of project.timeline.tracks){const c=t.clips.find(x=>x.id===id);if(c)return c;}return null;}
-function renderMedia(){mediaList.innerHTML='';(project?.media||[]).forEach(m=>{const d=document.createElement('div');d.className='media-item'+(m.id===selectedMediaId?' selected':'');d.textContent=m.filename+' · '+(m.duration||0).toFixed(1)+'s';d.onclick=()=>{selectedMediaId=m.id;if(m.url)preview.src=m.url;renderMedia();};mediaList.appendChild(d);});}
+function renderMedia(){mediaList.innerHTML='';(project?.media||[]).forEach(m=>{const d=document.createElement('div');d.className='media-item'+(m.id===selectedMediaId?' selected':'');d.textContent=m.filename+' · '+(m.duration||0).toFixed(1)+'s';d.onclick=()=>{selectedMediaId=m.id;if(m.proxyUrl||m.url)preview.src=m.proxyUrl||m.url;renderMedia();};mediaList.appendChild(d);});}
 function renderTimeline(){timeline.innerHTML='';(project?.timeline?.tracks||[]).forEach(t=>{const box=document.createElement('div');box.className='track';box.innerHTML='<strong>'+t.type+' '+t.id+'</strong><br>';t.clips.forEach(c=>{const chip=document.createElement('span');chip.className='clip'+(c.id===selectedClipId?' selected':'');chip.textContent=(c.filename||'clip')+' @'+c.start.toFixed(1);chip.onclick=()=>{selectedClipId=c.id;clipInfo.textContent=JSON.stringify(c,null,1);renderTimeline();};box.appendChild(chip);});timeline.appendChild(box);});}
 async function load(){if(!projectId)return;project=await api('/api/projects/'+projectId);renderMedia();renderTimeline();log('loaded',project.name);}
 api('/api/plugins').then(j=>{plugins.innerHTML=(j.plugins||[]).map(p=>'<div><code>'+p.id+'</code></div>').join('');}).catch(()=>{});
+api('/api/capabilities').then(c=>{caps.textContent='v'+(c.version||'')+' · tracks '+(c.features&&c.features.tracks?c.features.tracks.join('/'):'');}).catch(()=>{});
 if(projectId)load();
 </script></body></html>
