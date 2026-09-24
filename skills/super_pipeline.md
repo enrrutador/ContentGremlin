@@ -1,17 +1,25 @@
 # Skill: Super Pipeline
 
 ## Goal
-One call: script → voice + subtitles + video + metadata + thumbnail.
+Script → voice + subs + video + metadata + thumb → optional **open in editor** → optional YouTube upload.
 
-## Steps
+## Call
 ```json
 POST /api/super_pipeline
 {
   "script": "...",
   "title": "...",
-  "voice": null,
   "burn_subtitles": false,
-  "idea": {"title": "...", "angle": "..."}
+  "open_in_editor": true
 }
 ```
-Present all paths + metadata, then offer upload.
+
+## One-click editor
+```json
+POST /api/open_in_editor
+{ "video_path": "/path/out.mp4", "name": "Mi video" }
+```
+
+Returns `editor_url` → http://localhost:3000/?projectId=...
+
+Then upload: `skills/upload.md`.

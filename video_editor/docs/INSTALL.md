@@ -9,16 +9,8 @@ node server.js
 
 http://localhost:3000
 
-Requires: Node ≥ 18, ffmpeg, ffprobe.
+Requires Node ≥ 18, ffmpeg, ffprobe.
 
-## How the server loads
+Server = `payload/00.b64`… joined by `server.js`.
 
-`server.js` joins `payload/00.b64` … `22.b64` (gzip+base64 of the full Phase 4 app), decodes, and runs it.
-
-Optional: place `server.monolith.js` and run `USE_MONOLITH=1 node server.js`.
-
-To repack after editing the monolith:
-
-```bash
-bash scripts/pack-server.sh
-```
+Gremlin (Python): from repo root `pip install -r requirements.txt` then run API; use `open_in_editor` after `super_pipeline`.
