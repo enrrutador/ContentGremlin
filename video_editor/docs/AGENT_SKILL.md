@@ -1,32 +1,26 @@
-# Skill: Video Editor local (agente)
+# Guía rápida para agentes
 
-Base URL: `http://localhost:3000`
+Skills detallados en **`video_editor/skills/`**:
 
-## Flujo rápido
-1. POST /api/projects
-2. POST /api/media/import (file + projectId)
-3. POST /api/agent/assemble { projectId, mediaIds, crossfade, fadeInFirst }
-4. Poll GET /api/render/{jobId}
+| Archivo | Uso |
+|---------|-----|
+| SKILL.md | Índice y reglas de oro |
+| 01_project.md | Crear/cargar proyecto |
+| 02_import.md | Importar medios |
+| 03_timeline.md | Clips, cut, move, ripple |
+| 04_effects.md | Efectos y crossfade |
+| 05_render.md | Export y poll |
+| 06_gremlin_bridge.md | Desde ContentGremlin |
+| playbook_assemble.md | Flujo completo recomendado |
 
-## OTIO export
-`GET /api/projects/:id/otio` → OpenTimelineIO-compatible JSON
+## Atajos
 
-## Jobs persistentes
-`GET /api/render` lista jobs (`jobs/*.json`)
-`GET /api/render/:jobId` sobrevive reinicios
-
-## Integración ContentGremlin
-```json
-POST /api/integrate/gremlin
-{
-  "name": "ep01",
-  "videoPath": "/path/to/output.mp4",
-  "mediaPaths": ["/path/clip1.mp4"],
-  "autoAssemble": true,
-  "crossfade": 0.5
-}
 ```
-Python: `modules/editor_bridge.py` → `send_to_editor(...)`
+GET  /api/capabilities
+GET  /api/agent/status?projectId=
+GET  /api/agent/effects
+POST /api/agent/assemble
+POST /api/render  →  GET /api/render/{jobId}
+```
 
-## Plugins (10)
-effect.fade_in/out, scale, volume, blur, brightness, contrast, crop, title, transition.crossfade
+Base: `http://127.0.0.1:3000`
