@@ -1,31 +1,30 @@
-# ContentGremlin — producto
+# ContentGremlin — expectativas reales
 
-## Arranque
+## Objetivo (cuando madure)
 
-```bash
-./start.sh
-```
+**Generar borrador original → revisar → montar → exportar MP4 → (opcional) subir en privado.**
 
-| URL | Qué |
-|-----|-----|
-| http://127.0.0.1:8000 | **Shell unificado** (pipeline + editor embebido + config) |
-| http://127.0.0.1:3000 | Editor directo |
-| http://127.0.0.1:8000/docs | OpenAPI |
+## Qué esperás hoy
 
-## Editor — código legible
+| Etapa | Realidad actual |
+|-------|-----------------|
+| Análisis | Patrones de alto nivel |
+| Ideas / guion | Tan buenos como tu LLM + revisión humana |
+| Video Gremlin | Plantilla + audio (+ subs opcionales) |
+| Editor | Montaje básico multipista, FFmpeg |
+| Upload | OAuth + permiso explícito; pensá en private |
 
-Al arrancar, `server.js`:
+## Camino feliz
 
-1. Si existe `source/*.js` → ensambla `server.monolith.js`
-2. Si no, usa `server.monolith.js` si está
-3. Si no, **desempaqueta `payload/*.b64`** → escribe `server.monolith.js` y lo carga
+1. `./start.sh`
+2. Shell `:8000` → modo supervised
+3. Pipeline → super pipeline
+4. Revisar guion y MP4
+5. Editor si hace falta
+6. Upload solo con OK explícito
 
-En un clone fresco el payload genera el monolito la primera vez. Después trabajás sobre el `.js` generado.
+## No es
 
-## Flujo en la UI
-
-Inicio → Pipeline (analizar → ideas → script → super pipeline) → Editor (iframe) → Upload opcional
-
-## Agentes
-
-`skills/playbook_full.md` + `video_editor/skills/playbook_assemble.md`
+- Autopiloto de canal
+- Clon de Premiere
+- Garantía de monetización o originalidad legal absoluta

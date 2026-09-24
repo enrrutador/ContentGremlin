@@ -1,75 +1,60 @@
 # ContentGremlin
 
-**Toolkit local** para estudiar patrones públicos de canales de YouTube y generar **contenido original** (ideas, guion, voz, subtítulos, video borrador, metadata) — sin copiar.
+Toolkit **local** para estudiar patrones públicos de canales de YouTube y generar **contenido original** (ideas, guion, voz, subtítulos, video borrador, metadata), con montaje opcional y upload solo con permiso.
 
-Agent-friendly · Localhost · Modos supervised/autonomous · Editor de montaje incluido
-
----
-
-## Qué es
-
-1. Analizar un canal de referencia (patrones, no copias)
-2. Generar idea → guion → voz → video → metadata
-3. Montar/refinar en el **editor local** (`localhost:3000`)
-4. Subir a YouTube solo con permiso explícito
-
-No reemplaza Premiere ni garantiza videos virales. El video base es plantilla + voz (drafts); el editor permite montaje real con FFmpeg.
+**Estado:** en maduración. Útil como laboratorio para agentes y borradores; **no** es un reemplazo de Premiere ni un generador automático de videos virales.
 
 ---
 
-## Arranque (producto)
+## Qué hace bien hoy
+
+- Pipeline API: analizar → ideas → guion → voz → video plantilla → metadata
+- Modos **supervised** / **autonomous** (upload con frenos)
+- Skills detallados para agentes (`skills/`)
+- Editor local multipista + FFmpeg + API de montaje
+- Shell en `localhost:8000` (pipeline + editor embebido + config)
+
+## Qué todavía no cumple como producto cerrado
+
+- El video base es **plantilla + narración**, no cine automático
+- El editor es **MVP** (no keyframes pro, no color suite)
+- La calidad del guion/ideas depende de **tu LLM** y de revisión humana
+- Safety es ayuda técnica, **no** garantía legal anti-strike
+- Integración Generar → Editar → Subir funciona, con bordes rough
+
+---
+
+## Arranque
 
 ```bash
 git clone https://github.com/enrrutador/ContentGremlin.git
 cd ContentGremlin
-cp .env.example .env    # LLM / TTS keys
-./start.sh              # API + Editor juntos
+cp .env.example .env
+./start.sh
 ```
 
-| Servicio | URL |
-|----------|-----|
-| Gremlin API | http://127.0.0.1:8000 |
-| OpenAPI | http://127.0.0.1:8000/docs |
-| Editor de video | http://127.0.0.1:3000 |
+| URL | Qué |
+|-----|-----|
+| http://127.0.0.1:8000 | Shell unificado |
+| http://127.0.0.1:8000/docs | OpenAPI |
+| http://127.0.0.1:3000 | Editor |
 
-Requisitos: **Python 3.10+**, **Node 18+**, **FFmpeg**.
-
-### Solo una pieza
-
-```bash
-# API
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt && python main.py
-
-# Editor
-cd video_editor && npm install && npm start
-```
+Requisitos: Python 3.10+, Node 18+, FFmpeg.
 
 ---
 
-## Documentación
+## Docs
 
 | Doc | Contenido |
 |-----|-----------|
-| [docs/PRODUCT.md](docs/PRODUCT.md) | Camino feliz a primer MP4 |
+| [docs/PRODUCT.md](docs/PRODUCT.md) | Expectativas + camino feliz |
 | [docs/INSTALL.md](docs/INSTALL.md) | Instalación |
 | [docs/YOUTUBE_SETUP.md](docs/YOUTUBE_SETUP.md) | Upload opcional |
-| [skills/SKILL.md](skills/SKILL.md) | Skills para agentes (pipeline) |
-| [video_editor/skills/SKILL.md](video_editor/skills/SKILL.md) | Skills del editor |
+| [skills/SKILL.md](skills/SKILL.md) | Agentes (pipeline) |
+| [video_editor/skills/SKILL.md](video_editor/skills/SKILL.md) | Agentes (editor) |
 
 ---
 
-## Features
-
-- Pipeline completo Analyze → Upload
-- Modos **Supervised** / **Autonomous** (upload con gates)
-- BYO LLM (OpenAI, Anthropic, xAI, Ollama, …)
-- Editor local multipista + API para agentes
-- YouTube Data API opcional
-- Safety multi-señal (no es garantía legal)
-
----
-
-## License
+## Licencia
 
 MIT
