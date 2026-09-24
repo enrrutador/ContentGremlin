@@ -1,0 +1,1 @@
+{"id":"effect.blur","name":"Blur","version":"1.0.0","category":"Efectos de video","type":"effect","description":"Box blur","params":{"amount":{"type":"number","default":5,"min":0,"max":50}},"ffmpeg":{"filter":"boxblur={amount}:1"},"license":"MIT-compatible (FFmpeg)"}

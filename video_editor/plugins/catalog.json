@@ -1,23 +1,17 @@
 {
-  "version": "2.0",
-  "note": "Only modules with real manifests in plugins/examples/ are executable. The roadmap targets ~200 catalog entries over time.",
+  "version": "3.0",
+  "note": "Executable modules only",
   "implemented": [
+    "effect.blur",
+    "effect.brightness",
+    "effect.contrast",
+    "effect.crop",
+    "transition.crossfade",
     "effect.fade_in",
     "effect.fade_out",
-    "transition.crossfade",
     "effect.scale",
+    "effect.title",
     "effect.volume"
   ],
-  "planned_categories": {
-    "Importación, organización y metadatos": 20,
-    "Edición y transformación de clips": 25,
-    "Efectos de video": 30,
-    "Color y corrección de imagen": 25,
-    "Audio y mezcla": 20,
-    "Títulos y gráficos": 20,
-    "Transiciones": 15,
-    "Herramientas asistidas por IA": 15,
-    "Exportación y formatos": 15,
-    "Control de calidad": 15
-  }
+  "count": 10
 }

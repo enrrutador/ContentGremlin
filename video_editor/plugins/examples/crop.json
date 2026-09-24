@@ -1,0 +1,1 @@
+{"id":"effect.crop","name":"Crop center","version":"1.0.0","category":"Edición y transformación de clips","type":"effect","description":"Crop relative to frame","params":{"w":{"type":"number","default":1,"min":0.1,"max":1},"h":{"type":"number","default":1,"min":0.1,"max":1}},"ffmpeg":{"filter":"crop=iw*{w}:ih*{h}"},"license":"MIT-compatible (FFmpeg)"}

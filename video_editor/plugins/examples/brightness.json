@@ -1,0 +1,1 @@
+{"id":"effect.brightness","name":"Brightness","version":"1.0.0","category":"Color y corrección de imagen","type":"effect","description":"Adjust brightness","params":{"value":{"type":"number","default":0,"min":-1,"max":1}},"ffmpeg":{"filter":"eq=brightness={value}"},"license":"MIT-compatible (FFmpeg)"}

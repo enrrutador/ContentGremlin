@@ -1,0 +1,1 @@
+{"id":"effect.contrast","name":"Contrast","version":"1.0.0","category":"Color y corrección de imagen","type":"effect","description":"Adjust contrast","params":{"value":{"type":"number","default":1,"min":0,"max":3}},"ffmpeg":{"filter":"eq=contrast={value}"},"license":"MIT-compatible (FFmpeg)"}
