@@ -1,11 +1,29 @@
-# Skill: Metadata (SEO)
+# Skill: Metadata YouTube
 
-## Goal
-Optimized title, description, tags, chapters.
-
-## Steps
-```json
+```http
 POST /api/generate_metadata
-{"script": "...", "idea": {"title": "...", "angle": "..."}, "language": "es"}
+Content-Type: application/json
+
+{
+  "script": "...",
+  "idea": { "title": "...", "angle": "..." },
+  "language": "es"
+}
 ```
-Present title, description (with chapters), tags. Allow user edits before upload.
+
+## Respuesta
+
+```json
+{
+  "success": true,
+  "metadata": {
+    "title": "...",
+    "description": "...",
+    "tags": ["..."],
+    "chapters": []
+  },
+  "library_id": "..."
+}
+```
+
+Usá esos campos en `upload_video`. En supervised, mostrá título/tags antes de subir.

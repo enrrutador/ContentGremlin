@@ -1,21 +1,38 @@
-# Skill: Write Script
+# Skill: Escribir guion
 
-## Goal
-Write a full, original spoken script ready for TTS.
+## Prerrequisito
 
-## When
-User approved (or autonomous selected) one idea with title, angle, hook.
+Una `idea` aprobada.
 
-## Steps
-1. Call:
-   ```json
-   POST /api/write_script
-   {"idea": {"title": "...", "angle": "...", "hook": "...", "estimated_minutes": 8}, "language": "es"}
-   ```
-2. Show script in supervised mode; allow edits.
+## Llamada
 
-## Structure
-Hook → promise → development → examples → CTA
+```http
+POST /api/write_script
+Content-Type: application/json
 
-## Next
-→ `skills/super_pipeline.md` (recommended)
+{
+  "idea": { "title": "...", "angle": "...", "hook": "..." },
+  "language": "es"
+}
+```
+
+## Respuesta
+
+```json
+{ "success": true, "script": "...texto completo...", "title": "...", "library_id": "..." }
+```
+
+Guardá `script` **completo** (no lo resumas al pasar al pipeline).
+
+## Supervised
+
+Mostrá el guion; esperá OK o cambios.
+
+## Autonomous
+
+Pasá a `super_pipeline` (o voice → video).
+
+## Anti-patrones
+
+- No acortes el script al enviarlo.
+- No mezcles texto del canal de referencia.

@@ -1,24 +1,38 @@
-# Skill: Analyze Channel
+# Skill: Analizar canal de referencia
 
-## Goal
-Extract **high-level patterns only** from a successful YouTube channel. Never download or copy full content.
+## Objetivo
 
-## When
-User provides a channel URL, handle (`@name`), or says "analyze this channel".
+Extraer **patrones de alto nivel**. **Prohibido** copiar títulos, guiones o estructura literal.
 
-## Steps
-1. Normalize input to a YouTube URL if needed (`@handle` → `https://www.youtube.com/@handle`).
-2. Call:
-   ```json
-   POST /api/analyze_channel
-   {"channel_url": "<url or handle>"}
-   ```
-3. Present: channel name, videos analyzed, average duration, top titles (as examples of what works, not to copy), common patterns.
-4. In **supervised** mode: ask "¿Usamos este análisis para generar ideas originales?"
+## Llamada
 
-## Do NOT
-- Copy titles into new videos
-- Scrape full transcripts for copying
+```http
+POST /api/analyze_channel
+Content-Type: application/json
 
-## Next
-→ `skills/ideas.md`
+{ "channel_url": "https://www.youtube.com/@handle" }
+```
+
+Acepta handle `@name` o URL de canal.
+
+## Respuesta
+
+Guardá el report completo (objeto con `patterns`). Reutilizalo como `analysis_report` en ideas.
+
+## Después
+
+1. **Supervised:** resumí en 3–6 bullets (temas, duración, gancho). **No** pegues títulos del canal. Pedí OK.
+2. **Autonomous:** pasá el report a `generate_ideas`.
+
+## Errores
+
+| detail | Acción |
+|--------|--------|
+| URL inválida | Pedir URL correcta |
+| timeout | Reintentar 1 vez |
+| LLM error | Verificar provider/API key |
+
+## Anti-patrones
+
+- No generes ideas en este paso.
+- No digas “vamos a hacer el mismo video que X”.

@@ -1,22 +1,30 @@
-# Skill: Video Editor local
+# Skill: Editor local (puente desde Gremlin)
 
-Base: `http://127.0.0.1:3000`
+**Docs de montaje:** `video_editor/skills/SKILL.md`
 
-Docs completas: `video_editor/skills/SKILL.md` y playbooks.
+## Abrir media en el editor
 
-## Flujo mínimo
+```http
+POST /api/open_in_editor
+Content-Type: application/json
 
-1. `POST /api/projects` → projectId
-2. `POST /api/media/import-paths` `{ projectId, paths: [...] }` → mediaIds
-3. `POST /api/agent/assemble` `{ projectId, mediaIds, crossfade: 1, fadeInFirst: true }` → jobId
-4. Poll `GET /api/render/{jobId}` hasta `done`
-5. Entregar `url` o `outputPath`
+{
+  "video_path": "/abs/path/out.mp4",
+  "media_paths": ["/abs/path/clip2.mp4"],
+  "name": "ep01",
+  "auto_assemble": true,
+  "crossfade": 0.5
+}
+```
 
-## Estado y efectos
+```json
+{
+  "success": true,
+  "editor_project_id": "...",
+  "editor_url": "http://127.0.0.1:3000/?projectId=..."
+}
+```
 
-- `GET /api/agent/status?projectId=`
-- `GET /api/agent/effects`
+Alternativa: `super_pipeline` con `"open_in_editor": true`.
 
-## Desde Gremlin
-
-`POST /api/open_in_editor` o `super_pipeline` con `open_in_editor: true`.
+Requisito: editor en `:3000`. El MP4 final del render del editor es el path para `upload_video`.

@@ -1,11 +1,20 @@
-# Skill: Subtitles
+# Skill: Subtítulos
 
-## Goal
-Generate SRT and VTT from the script.
-
-## Steps
-```json
+```http
 POST /api/generate_subtitles
-{"script": "<full script>", "title": "<name>"}
+Content-Type: application/json
+
+{
+  "script": "<texto>",
+  "title": "ep01",
+  "audio_path": "/abs/path/audio.wav"
+}
 ```
-Return `srt_path`, `vtt_path`. Ask if user wants burn-in (`burn_subtitles: true` in super_pipeline).
+
+## Respuesta
+
+```json
+{ "success": true, "srt_path": "...", "vtt_path": "...", "library_id": "..." }
+```
+
+Burn-in: en `super_pipeline` / `create_video` con `"burn_subtitles": true`.

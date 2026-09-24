@@ -1,53 +1,84 @@
-# ContentGremlin — Agent Skill
+# ContentGremlin — Skill maestro para agentes
 
-**You are operating ContentGremlin**, a local tool that analyzes successful YouTube channels and produces **100% original** content (ideas, scripts, voice, subtitles, video, metadata, thumbnails) without copying.
+**Base URL por defecto:** `http://127.0.0.1:8000`
+**Editor local:** `http://127.0.0.1:3000` (ver `editor.md` y `video_editor/skills/`)
 
-You are **not** a YouTube expert by default. Follow this skill exactly. Do not invent your own pipeline.
-
----
-
-## Core rules (never break)
-
-1. **Never copy** titles, scripts, structure, or wording from the reference channel.
-2. Only extract **high-level patterns** (topics, length, hook style, pacing).
-3. Respect **mode**:
-   - `supervised` → ask the user before ideas, script, video, upload.
-   - `autonomous` → proceed, but **upload** still needs prior permission (`autonomous_upload_allowed`).
-4. Prefer calling ContentGremlin API endpoints over doing the work yourself.
-5. Base URL (default): `http://localhost:8000`
+Sos un operador de ContentGremlin. **No improvisés el pipeline.** Leé el skill del paso actual y llamá la API. Si falla, leé `detail` / `error` y corregí.
 
 ---
 
-## Recommended full workflow
+## Reglas que no se rompen
+
+1. **Nunca copiar** títulos, guiones, estructura o frases del canal de referencia.
+2. Del análisis solo sacás **patrones de alto nivel** (temas, duración, tipo de gancho, ritmo).
+3. Respetá el **modo**:
+   - `supervised` → mostrá resultado y esperá OK del usuario en: ideas, script, video, upload.
+   - `autonomous` → avanzá; **upload** solo si `autonomous_upload_allowed` y `explicit_approval`.
+4. Preferí endpoints de la API antes de “inventar” contenido vos mismo.
+5. Guardá siempre los IDs y paths que devuelve cada respuesta (`library_id`, `audio_path`, `video_path`, etc.).
+
+---
+
+## Skills por paso (orden de lectura)
+
+| # | Skill | Cuándo |
+|---|--------|--------|
+| 0 | Este archivo | Arranque |
+| 1 | `status_mode.md` | Antes de todo |
+| 2 | `analyze.md` | Canal de referencia |
+| 3 | `ideas.md` | Generar ángulos originales |
+| 4 | `script.md` | Guion completo |
+| 5 | `safety.md` | Chequeo de originalidad |
+| 6 | `voice.md` | Audio TTS |
+| 7 | `subtitles.md` | SRT/VTT |
+| 8 | `video.md` | Video simple + audio |
+| 9 | `cinematic.md` | Video por escenas |
+| 10 | `metadata.md` | Título, descripción, tags |
+| 11 | `thumbnail.md` | Miniatura |
+| 12 | `super_pipeline.md` | Atajo post-script |
+| 13 | `editor.md` | Montaje local |
+| 14 | `upload.md` | YouTube (opcional) |
+| 15 | `playbook_full.md` | Flujo extremo a extremo |
+| 16 | `library.md` | Recuperar corridas previas |
+
+---
+
+## Workflow recomendado (resumen)
 
 ```
-1. GET  /api/status
-2. POST /api/analyze_channel
-3. POST /api/generate_ideas
-4. POST /api/write_script
-5. POST /api/super_pipeline
-6. POST /api/upload_video (only if allowed)
+GET  /api/status
+POST /api/set_mode                     { "mode": "supervised" }
+POST /api/analyze_channel              { "channel_url": "..." }
+POST /api/generate_ideas               { "analysis_report": {...}, "count": 8 }
+  → (supervised: usuario elige idea)
+POST /api/write_script                 { "idea": {...} }
+POST /api/super_pipeline               { "script": "...", "title": "...", "open_in_editor": true }
+  → opcional: refinar en editor :3000
+POST /api/upload_video                 # solo con permiso + credenciales
 ```
-
-In **supervised** mode: after analysis, ideas, script and before upload, **stop and show results to the user** for approval.
 
 ---
 
-## Capability skills
+## Endpoints de control
 
-| Skill file | When to use |
-|------------|-------------|
-| `skills/analyze.md` | User gives a channel URL / handle |
-| `skills/ideas.md` | After analysis, need original video ideas |
-| `skills/script.md` | User approved an idea |
-| `skills/voice.md` | Script ready → narration |
-| `skills/subtitles.md` | Need SRT/VTT |
-| `skills/metadata.md` | Title, description, tags, chapters |
-| `skills/thumbnail.md` | Cover image |
-| `skills/video.md` | Assemble video |
-| `skills/upload.md` | Publish to YouTube |
-| `skills/super_pipeline.md` | One-shot production from script |
-| `skills/safety.md` | Always active constraints |
+```http
+GET  /api/status
+GET  /api/mode
+POST /api/set_mode
+GET  /api/profile
+POST /api/profile
+GET  /api/config/public
+GET  /api/library
+GET  /api/agent/skills
+```
 
-Interactive docs: `http://localhost:8000/docs`
-Fetch all skills: `GET /api/agent/skills`
+---
+
+## Errores globales
+
+| Síntoma | Acción |
+|---------|--------|
+| ECONNREFUSED :8000 | Arrancar API Gremlin |
+| ECONNREFUSED :3000 | Arrancar editor (`cd video_editor && node server.js`) |
+| 400 + detail | Leer mensaje; faltan campos o LLM/TTS mal configurado |
+| 403 en upload | No hay permiso de upload o credenciales |

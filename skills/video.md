@@ -1,8 +1,26 @@
-# Skill: Video Assembly
+# Skill: Video (plantilla + audio)
 
-## Options
-- `POST /api/create_video` with audio_path + title
-- `POST /api/full_pipeline` script → voice → video
-- Prefer `POST /api/super_pipeline` for full pack
+## Prerrequisitos
 
-Requires FFmpeg. v1 is background + title + audio.
+`script` + `audio_path`.
+
+```http
+POST /api/create_video
+Content-Type: application/json
+
+{
+  "script": "...",
+  "audio_path": "/abs/path/audio.wav",
+  "title": "ep01",
+  "burn_subtitles": false,
+  "template": "dark_minimal"
+}
+```
+
+## Respuesta
+
+```json
+{ "success": true, "video_path": "/abs/path/video.mp4", "library_id": "..." }
+```
+
+Para escenas/motion → `cinematic.md`. Preferí `super_pipeline` post-script.

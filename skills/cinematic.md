@@ -1,19 +1,24 @@
-# Skill: Cinematic mode
+# Skill: Pipeline cinemático
 
-## Goal
-Richer video: scenes → image/video per scene → motion → narration.
+## Estado
 
-## Requirements
-- Image: `OPENAI_API_KEY` + `IMAGE_PROVIDER=openai`
-- Optional video: `VIDEO_PROVIDER=generic_http` + `VIDEO_API_URL`
-- Without video API → Ken Burns on stills
-
-## Call
-```json
-POST /api/cinematic_pipeline
-{"script": "...", "title": "...", "burn_subtitles": false, "style": "cinematic, natural light"}
+```http
+GET /api/cinematic/status
 ```
 
-Check: `GET /api/cinematic/status`
+## Llamada
 
-Prefer draft (`/api/super_pipeline`) for previews; cinematic after script approval. Warn about image API cost (1 image/scene).
+```http
+POST /api/cinematic_pipeline
+Content-Type: application/json
+
+{
+  "script": "...",
+  "title": "ep01",
+  "voice": null,
+  "burn_subtitles": false,
+  "style": "cinematic dark"
+}
+```
+
+Guardá `video_path`. Si no hay image/video gen, el sistema puede degradar; no prometas providers no configurados.

@@ -1,22 +1,45 @@
-# Skill: Generate Original Ideas
+# Skill: Generar ideas originales
 
-## Goal
-Produce **original** video ideas inspired by patterns, never clones.
+## Prerrequisito
 
-## When
-You already have an `analysis_report` from `/api/analyze_channel`.
+`analysis_report` de `analyze_channel`.
 
-## Steps
-1. Call:
-   ```json
-   POST /api/generate_ideas
-   {"analysis_report": { ... }, "count": 6, "niche": "optional"}
-   ```
-2. Show each idea: title, angle, hook, why_it_works, estimated_minutes.
-3. Supervised: ask user to pick one. Autonomous: pick strongest angle + curiosity.
+## Llamada
 
-## Quality bar
-Angle must be a **new twist**, not a rephrase of a top video.
+```http
+POST /api/generate_ideas
+Content-Type: application/json
 
-## Next
-→ `skills/script.md`
+{
+  "analysis_report": { },
+  "count": 8,
+  "niche": "opcional"
+}
+```
+
+## Respuesta
+
+```json
+{
+  "success": true,
+  "ideas": [ { "title": "...", "angle": "...", "hook": "...", "why_original": "..." } ],
+  "library_id": "..."
+}
+```
+
+## Supervised
+
+1. Listá ideas numeradas.
+2. Esperá elección.
+3. **No** escribas el script hasta que elija.
+
+## Autonomous
+
+Elegí idea #1 salvo otra prioridad del usuario; documentá cuál.
+
+## Después
+
+```http
+POST /api/write_script
+{ "idea": { "title": "...", "angle": "...", "hook": "..." } }
+```

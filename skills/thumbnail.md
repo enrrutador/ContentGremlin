@@ -1,11 +1,19 @@
-# Skill: Thumbnail
+# Skill: Miniatura
 
-## Goal
-YouTube-sized thumbnail (1280x720) with title text.
-
-## Steps
-```json
+```http
 POST /api/generate_thumbnail
-{"title": "<title>", "output_name": "optional"}
+Content-Type: application/json
+
+{
+  "title": "Título del video",
+  "output_name": "ep01"
+}
 ```
-Pass `thumbnail_path` to upload_video.
+
+## Respuesta
+
+```json
+{ "success": true, "thumbnail_path": "/abs/path/thumb.png", "library_id": "..." }
+```
+
+Pasá `thumbnail_path` a `upload_video` si corresponde.
