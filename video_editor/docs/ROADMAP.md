@@ -1,25 +1,27 @@
 # Roadmap Video Editor Local
 
-## Fase 1 - MVP local funcional
-- Importar medios, biblioteca
-- Línea de tiempo multipista video/audio
-- Cortes, recortes básicos
-- Exportación con FFmpeg
+## Fase 1 — MVP funcional (hecho)
+- Import + ffprobe
+- Timeline real (start/in/out/duration/sourcePath)
+- Cut / trim
+- Render concat FFmpeg
+- 5 plugins reales
+- UI mínima + API agente
 
-## Fase 2 - API agente
-- POST /api/projects
-- POST /api/media/import
-- POST /api/timeline/clips /cut /effects /transitions
-- POST /api/render + GET /api/render/{jobId}
-- Guardado en JSON compatible OpenTimelineIO
+## Fase 2
+- Export proyecto estilo OpenTimelineIO
+- Preview headless / frame at t
+- Job queue persistente
 
-## Fase 3 - Sistema de plugins
-- Manifiestos JSON con validación schema
-- Categorías y parámetros tipados
-- Ejecución local, sin subir vídeos
+## Fase 3
+- Schema validation de plugins
+- Más filtros FFmpeg (color, blur, crop)
+- Crossfade real en render (xfade)
 
-## Fase 4 - Catálogo 200 módulos
-Importación 20, Edición 25, Efectos 30, Color 25, Audio 20, Títulos 20, Transiciones 15, IA 15, Exportación 15, QA 15
+## Fase 4
+- Ampliar catálogo con módulos reales
+- Títulos / drawtext
+- Audio ducking, loudnorm
 
-## Fase 5 - Avanzado
-Proxies, subtítulos, keyframes, corrección color, GPU, IA opcional
+## Fase 5
+- Proxies, GPU, keyframes, MCP server

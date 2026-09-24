@@ -2,23 +2,33 @@
 
 Base: `http://localhost:3000/api`
 
-## Proyectos
-POST /api/projects → {id}
-GET /api/projects/:id
+## Projects
+- `POST /api/projects` `{ name? }` → `{ id, project }`
+- `GET /api/projects` → lista
+- `GET /api/projects/:id`
+- `DELETE /api/projects/:id`
 
 ## Media
-POST /api/media/import multipart/form-data file
+- `POST /api/media/import` multipart `file` + field `projectId`  
+  Respuesta incluye `duration`, `width`, `height`, `url` y se guarda en el proyecto.
+- `GET /api/projects/:id/media`
 
 ## Timeline
-POST /api/timeline/clips {projectId, trackId, clip}
-POST /api/timeline/cut {projectId, clipId, at}
-POST /api/timeline/effects {projectId, clipId, effectId, params}
-POST /api/timeline/transitions {projectId, fromClipId, toClipId, transitionId, duration}
+- `POST /api/timeline/clips`  
+  `{ projectId, trackId, mediaId, start?, inPoint?, outPoint?, duration?, effects? }`
+- `POST /api/timeline/cut`  
+  `{ projectId, clipId, at? }` o `{ atRelative? }`
+- `POST /api/timeline/trim`  
+  `{ projectId, clipId, inPoint?, outPoint?, start?, duration? }`
+- `DELETE /api/timeline/clips/:clipId?projectId=`
+- `POST /api/timeline/effects`  
+  `{ projectId, clipId, effectId, params }`
+- `POST /api/timeline/transitions`  
+  `{ projectId, fromClipId, toClipId, transitionId, duration }`
 
 ## Render
-POST /api/render {projectId, width, height, outputPath}
-GET /api/render/:jobId
+- `POST /api/render` `{ projectId, width?, height?, outputPath? }` → `{ jobId }`
+- `GET /api/render/:jobId` → `{ status, url?, error? }`
 
-## Agent commands de alto nivel
-Importa clips, coloca segundo después del primero, añade fundido 1s y exporta 1080p
-→ se traduce a secuencia de llamadas API verificables.
+## Plugins
+- `GET /api/plugins` → manifiestos desde `plugins/examples/`
