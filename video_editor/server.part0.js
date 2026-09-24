@@ -12,7 +12,6 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { projectToOTIO } from "./lib/otio.js";
 import { createJobStore } from "./lib/jobs.js";
-
 const execFileP = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MEDIA_DIR = join(__dirname, "media");
@@ -24,13 +23,11 @@ const PREVIEW_DIR = join(RENDER_DIR, "preview");
 const JOBS_DIR = join(__dirname, "jobs");
 const jobStore = createJobStore(JOBS_DIR);
 await Promise.all([MEDIA_DIR, PROJECTS_DIR, PUBLIC_DIR, RENDER_DIR, PREVIEW_DIR, JOBS_DIR].map((d) => fs.mkdir(d, { recursive: true })));
-
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 app.use("/media", express.static(MEDIA_DIR));
 app.use("/renders", express.static(RENDER_DIR));
-
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_r, _f, cb) => cb(null, MEDIA_DIR),
@@ -39,7 +36,6 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 * 1024 },
 });
 const db = { projects: new Map(), renders: new Map() };
-
 async function probeMedia(filePath) {
   try {
     const { stdout } = await execFileP("ffprobe", ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", filePath], { maxBuffer: 5e6 });
@@ -116,7 +112,6 @@ function resolveClipAtTime(vClips, t) {
   }
   return null;
 }
-
 app.post("/api/projects", async (req, res) => {
   const project = emptyProject(req.body?.name || "Untitled");
   await saveProject(project);
@@ -143,7 +138,6 @@ app.delete("/api/projects/:id", async (req, res) => {
   try { await fs.unlink(join(PROJECTS_DIR, `${req.params.id}.json`)); } catch {}
   res.json({ ok: true });
 });
-
 app.post("/api/media/import", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file" });
   const projectId = req.body?.projectId || req.query?.projectId;
@@ -168,7 +162,6 @@ app.get("/api/projects/:id/media", async (req, res) => {
   if (!proj) return res.status(404).json({ error: "no project" });
   res.json({ media: proj.media || [] });
 });
-
 app.post("/api/timeline/clips", async (req, res) => {
   const { projectId, trackId = "v1", mediaId, sourcePath, start, inPoint = 0, outPoint, duration, effects = [] } = req.body || {};
   const proj = await readProject(projectId);
@@ -197,7 +190,6 @@ app.post("/api/timeline/clips", async (req, res) => {
   await saveProject(proj);
   res.json({ clipId: clip.id, clip });
 });
-
 app.post("/api/timeline/cut", async (req, res) => {
   const { projectId, clipId, at, atRelative } = req.body || {};
   const proj = await readProject(projectId);
@@ -207,48 +199,4 @@ app.post("/api/timeline/cut", async (req, res) => {
   const { track, clip } = found;
   const cutAt = atRelative != null ? clip.start + Number(atRelative) : Number(at);
   if (!(cutAt > clip.start && cutAt < clip.start + clip.duration))
-    return res.status(400).json({ error: "cut out of range" });
-  const sourceCut = clip.inPoint + (cutAt - clip.start);
-  const left = { ...clip, outPoint: sourceCut, duration: sourceCut - clip.inPoint };
-  const right = { ...clip, id: randomUUID(), start: cutAt, inPoint: sourceCut, outPoint: clip.outPoint, duration: clip.outPoint - sourceCut, effects: [...(clip.effects || [])] };
-  const idx = track.clips.findIndex((c) => c.id === clipId);
-  track.clips.splice(idx, 1, left, right);
-  await saveProject(proj);
-  res.json({ ok: true, left, right });
-});
-
-app.post("/api/timeline/trim", async (req, res) => {
-  const { projectId, clipId, inPoint, outPoint, start, duration } = req.body || {};
-  const proj = await readProject(projectId);
-  if (!proj) return res.status(404).json({ error: "no project" });
-  const found = findClip(proj, clipId);
-  if (!found) return res.status(404).json({ error: "Clip not found" });
-  const { clip } = found;
-  if (inPoint != null) clip.inPoint = Math.max(0, Number(inPoint));
-  if (outPoint != null) clip.outPoint = Number(outPoint);
-  if (start != null) clip.start = Number(start);
-  if (duration != null) { clip.duration = Number(duration); clip.outPoint = clip.inPoint + clip.duration; }
-  else clip.duration = clip.outPoint - clip.inPoint;
-  if (clip.duration <= 0) return res.status(400).json({ error: "Invalid trim" });
-  await saveProject(proj);
-  res.json({ ok: true, clip });
-});
-
-app.post("/api/timeline/move", async (req, res) => {
-  const { projectId, clipId, start, order, pack = false } = req.body || {};
-  const proj = await readProject(projectId);
-  if (!proj) return res.status(404).json({ error: "no project" });
-  const found = findClip(proj, clipId);
-  if (!found) return res.status(404).json({ error: "Clip not found" });
-  const { track, clip } = found;
-  if (Array.isArray(order)) {
-    const map = new Map(track.clips.map((c) => [c.id, c]));
-    const next = []; let t = 0;
-    for (const id of order) {
-      const c = map.get(id); if (!c) continue;
-      c.start = t; t += c.duration || 0; next.push(c); map.delete(id);
-    }
-    for (const c of map.values()) { c.start = t; t += c.duration || 0; next.push(c); }
-    track.clips = next;
-  } else if (start != null) {
-    clip.start = Math.max(0, Number(start));
+    return res.status(400).json({ error: "cut out of range", clipStart: clip.start, clipEnd: clip.start + clip.duration, cutAt });
