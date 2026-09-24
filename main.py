@@ -1,6 +1,6 @@
 """
 ContentGremlin - Main entry point
-Run with: python main.py
+Run with: python main.py  or  ./start.sh
 """
 
 import uvicorn
@@ -13,47 +13,47 @@ from pathlib import Path
 from api.routes import router
 from core.config import settings, DATA_DIR, CREDENTIALS_DIR
 
-# Ensure directories exist
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(
     title="ContentGremlin",
-    description="A mischievous little gremlin that studies successful YouTube channels and forges original content.",
+    description="Local toolkit for original YouTube content — agent-friendly API",
     version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
 )
-
-# API routes
 app.include_router(router, prefix="/api")
 
-# Static & templates
-BASE_DIR = Path(__file__).resolve().parent
-app.mount("/static", StaticFiles(directory=BASE_DIR / "ui" / "static"), name="static")
-templates = Jinja2Templates(directory=BASE_DIR / "ui" / "templates")
+static_dir = Path(__file__).parent / "static"
+templates_dir = Path(__file__).parent / "templates"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+templates = Jinja2Templates(directory=str(templates_dir)) if templates_dir.exists() else None
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+async def root(request: Request):
+    if templates is not None:
+        try:
+            return templates.TemplateResponse("index.html", {"request": request})
+        except Exception:
+            pass
+    return HTMLResponse(
+        "<h1>ContentGremlin</h1>"
+        "<p>API online. Docs: <a href='/docs'>/docs</a></p>"
+        "<p>Editor: <a href='http://127.0.0.1:3000'>localhost:3000</a></p>"
+        "<p>Product path: docs/PRODUCT.md</p>"
+    )
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "ContentGremlin"}
+    return {"status": "ok", "service": "ContentGremlin", "editor_hint": "http://127.0.0.1:3000"}
 
 
 if __name__ == "__main__":
-    print(f"""
-╔══════════════════════════════════════════════════════╗
-║             ContentGremlin v0.1.0                    ║
-║  The mischievous content forging gremlin             ║
-╠══════════════════════════════════════════════════════╣
-║  Local interface → http://localhost:{settings.port}            ║
-║  API docs        → http://localhost:{settings.port}/docs       ║
-╚══════════════════════════════════════════════════════╝
-    """)
+    print(f"ContentGremlin API → http://127.0.0.1:{settings.port}")
+    print("Editor → http://127.0.0.1:3000  (./start.sh levanta ambos)")
+    print(f"OpenAPI → http://127.0.0.1:{settings.port}/docs")
     uvicorn.run(
         "main:app",
         host=settings.host,

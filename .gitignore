@@ -1,45 +1,17 @@
-# Environment & secrets
-.env
-credentials/*.json
-credentials/*.pickle
-*.pem
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
 venv/
-.venv/
-env/
-ENV/
-
-# Data & local state
-data/user_profile.json
-data/*.db
-data/history/
-*.log
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Build
-dist/
-build/
-*.egg-info/
-
-# Video editor runtime (never commit)
+__pycache__/
+*.pyc
+.env
+data/
+credentials/
+*.pickle
+node_modules/
 video_editor/node_modules/
+video_editor/.server_built.mjs
+video_editor/data/
 video_editor/media/
 video_editor/renders/
 video_editor/jobs/
 video_editor/projects/
-video_editor/.server_built.mjs
+.DS_Store
+*.log
