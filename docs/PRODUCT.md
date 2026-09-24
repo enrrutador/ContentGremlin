@@ -1,47 +1,31 @@
-# ContentGremlin — camino a producto
-
-## Qué es
-
-Toolkit **local** para analizar patrones de un canal, generar idea → guion → voz → video borrador → metadata, montar en editor local y subir a YouTube solo con permiso.
+# ContentGremlin — producto
 
 ## Arranque
 
 ```bash
-git clone https://github.com/enrrutador/ContentGremlin.git
-cd ContentGremlin
-cp .env.example .env
 ./start.sh
 ```
 
-- API: http://127.0.0.1:8000
-- Editor: http://127.0.0.1:3000
+| URL | Qué |
+|-----|-----|
+| http://127.0.0.1:8000 | **Shell unificado** (pipeline + editor embebido + config) |
+| http://127.0.0.1:3000 | Editor directo |
+| http://127.0.0.1:8000/docs | OpenAPI |
 
-Requisitos: Python 3.10+, Node 18+, FFmpeg.
+## Editor — código legible
 
-## Camino feliz
+Al arrancar, `server.js`:
 
-1. `GET /api/status`
-2. `POST /api/set_mode` `{ "mode": "supervised" }`
-3. `POST /api/analyze_channel` `{ "channel_url": "..." }`
-4. `POST /api/generate_ideas` → elegir idea
-5. `POST /api/write_script`
-6. `POST /api/super_pipeline` `{ "script", "title", "open_in_editor": true }`
-7. Abrir `editor_url` o usar `video_path`
+1. Si existe `source/*.js` → ensambla `server.monolith.js`
+2. Si no, usa `server.monolith.js` si está
+3. Si no, **desempaqueta `payload/*.b64`** → escribe `server.monolith.js` y lo carga
 
-Skills: `skills/playbook_full.md`
+En un clone fresco el payload genera el monolito la primera vez. Después trabajás sobre el `.js` generado.
 
-## Flujo unificado
+## Flujo en la UI
 
-Generar (:8000) → Montar (:3000) → Export MP4 → Upload opcional
+Inicio → Pipeline (analizar → ideas → script → super pipeline) → Editor (iframe) → Upload opcional
 
-## Config
+## Agentes
 
-| Qué | Dónde |
-|-----|--------|
-| LLM/TTS | `.env` + `/api/profile` |
-| YouTube | client_secrets + `skills/upload.md` |
-| Editor | `video_editor/server.monolith.js` |
-
-## Qué no promete
-
-Premiere completo; cinemático sin providers; autopublicar sin confirmación.
+`skills/playbook_full.md` + `video_editor/skills/playbook_assemble.md`
