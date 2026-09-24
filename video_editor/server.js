@@ -1,21 +1,28 @@
 #!/usr/bin/env node
-/** Full Phase 3 server = server.monolith.A.js + server.monolith.B.js */
+/**
+ * ContentGremlin video_editor — Phase 3 full server
+ * Decodes server.payload.b64 (gzip+base64) and runs the complete app.
+ */
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath, pathToFileURL } from "url";
+import { gunzipSync } from "zlib";
 
 const dir = dirname(fileURLToPath(import.meta.url));
-const a = join(dir, "server.monolith.A.js");
-const b = join(dir, "server.monolith.B.js");
+const payloadPath = join(dir, "server.payload.b64");
+const built = join(dir, ".server_built.mjs");
 const mono = join(dir, "server.monolith.js");
 
-if (existsSync(mono) && !process.env.FORCE_PARTS) {
+if (existsSync(mono) && process.env.USE_MONOLITH === "1") {
   await import(pathToFileURL(mono).href);
-} else if (existsSync(a) && existsSync(b)) {
-  const built = join(dir, ".server_built.mjs");
-  writeFileSync(built, readFileSync(a, "utf8") + readFileSync(b, "utf8"));
+} else if (existsSync(payloadPath)) {
+  const b64 = readFileSync(payloadPath, "utf8").replace(/\s+/g, "");
+  const src = gunzipSync(Buffer.from(b64, "base64")).toString("utf8");
+  writeFileSync(built, src);
   await import(pathToFileURL(built).href);
+} else if (existsSync(mono)) {
+  await import(pathToFileURL(mono).href);
 } else {
-  console.error("Need server.monolith.js or server.monolith.A.js + server.monolith.B.js");
+  console.error("Missing server.payload.b64 (and server.monolith.js)");
   process.exit(1);
 }
