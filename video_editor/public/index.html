@@ -2,83 +2,198 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Editor local</title>
+<title>Editor local — ContentGremlin</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#e6e6e6}
-  header{padding:12px 16px;background:#161a21;border-bottom:1px solid #242830;display:flex;gap:12px;align-items:center}
-  main{display:grid;grid-template-columns:240px 1fr 240px;height:calc(100vh - 56px)}
-  .panel{background:#12151c;border-right:1px solid #242830;padding:12px;overflow:auto}
-  .panel.right{border-right:none;border-left:1px solid #242830}
+  :root { --bg:#0f1115; --panel:#12151c; --line:#242830; --btn:#232a37; }
+  * { box-sizing: border-box; }
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:#e6e6e6}
+  header{padding:12px 16px;background:#161a21;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  main{display:grid;grid-template-columns:260px 1fr 260px;height:calc(100vh - 56px)}
+  .panel{background:var(--panel);border-right:1px solid var(--line);padding:12px;overflow:auto}
+  .panel.right{border-right:none;border-left:1px solid var(--line)}
   .canvas{background:#0b0e13;padding:12px;overflow:auto}
-  .track{border:1px solid #222;margin:8px 0;background:#10151d;padding:8px}
-  button{background:#232a37;border:1px solid #2f3747;color:#e6e6e6;padding:8px 10px;border-radius:8px;cursor:pointer}
+  .track{border:1px solid #222;margin:8px 0;background:#10151d;padding:8px;border-radius:8px}
+  .clip{display:inline-block;background:#1e3a5f;border:1px solid #3b82f6;border-radius:6px;padding:6px 8px;margin:4px 4px 4px 0;font-size:12px;cursor:pointer}
+  .clip.selected{outline:2px solid #60a5fa}
+  button{background:var(--btn);border:1px solid #2f3747;color:#e6e6e6;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px}
   button:hover{background:#2a3342}
-  input,select{background:#0f131b;border:1px solid #2a3140;color:#e6e6e6;padding:6px 8px;border-radius:6px}
+  button.primary{background:#1d4ed8;border-color:#2563eb}
+  input{background:#0f131b;border:1px solid #2a3140;color:#e6e6e6;padding:6px 8px;border-radius:6px}
+  .media-item{padding:6px 8px;border:1px solid #222;border-radius:6px;margin:4px 0;font-size:12px;cursor:pointer}
+  .media-item:hover,.media-item.selected{border-color:#3b82f6}
+  .media-item.selected{background:#152033}
+  h3{margin:12px 0 8px;font-size:14px;opacity:.9}
+  pre{margin-top:12px;background:#0a0d12;padding:8px;border:1px solid #222;max-height:160px;overflow:auto;font-size:11px}
+  .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  label{font-size:12px;opacity:.8;display:block;margin-top:8px}
 </style>
 </head>
 <body>
 <header>
   <strong>Editor local</strong>
-  <span style="opacity:.7">http://localhost:3000</span>
-  <button id="newProj">Nuevo proyecto</button>
-  <input id="projId" placeholder="project id" style="width:260px">
+  <span style="opacity:.6;font-size:12px">localhost:3000</span>
+  <button id="newProj" class="primary">Nuevo proyecto</button>
+  <input id="projId" placeholder="project id" style="width:240px">
   <button id="loadProj">Cargar</button>
+  <button id="refresh">Refrescar</button>
 </header>
 <main>
   <div class="panel">
     <h3>Biblioteca</h3>
     <button id="importBtn">Importar medio</button>
-    <input type="file" id="fileInp" style="display:none" multiple>
-    <div id="mediaList" style="margin-top:8px;font-size:12px;opacity:.8"></div>
-    <h3 style="margin-top:16px">Complementos</h3>
-    <div id="plugins" style="font-size:12px;opacity:.8">Carga local de manifiestos...</div>
+    <input type="file" id="fileInp" style="display:none" multiple accept="video/*,audio/*">
+    <div id="mediaList"></div>
+    <h3>Complementos</h3>
+    <div id="plugins" style="font-size:12px;opacity:.85"></div>
   </div>
   <div class="canvas">
     <h3>Previsualización</h3>
-    <video id="preview" controls style="width:100%;background:#000;border:1px solid #222"></video>
-    <h3 style="margin-top:12px">Línea de tiempo</h3>
+    <video id="preview" controls style="width:100%;max-height:280px;background:#000;border:1px solid #222"></video>
+    <h3>Línea de tiempo</h3>
     <div id="timeline"></div>
-    <div style="margin-top:12px;display:flex;gap:8px">
-      <button id="addClip">Añadir clip demo</button>
-      <button id="renderBtn">Render</button>
+    <div class="row">
+      <button id="addClip">Añadir clip → v1</button>
+      <button id="addClipAudio">Añadir → a1</button>
+      <button id="cutClip">Cortar (mitad)</button>
+      <button id="fadeIn">+ Fade in</button>
+      <button id="fadeOut">+ Fade out</button>
+      <button id="renderBtn" class="primary">Render</button>
     </div>
-    <pre id="log" style="margin-top:12px;background:#0a0d12;padding:8px;border:1px solid #222;max-height:180px;overflow:auto;font-size:12px"></pre>
+    <pre id="log"></pre>
   </div>
   <div class="panel right">
     <h3>Propiedades</h3>
     <label>Ancho <input id="width" type="number" value="1280" style="width:100%"></label>
     <label>Alto <input id="height" type="number" value="720" style="width:100%"></label>
-    <button id="saveProj" style="margin-top:8px;width:100%">Guardar proyecto</button>
-    <h3 style="margin-top:16px">API</h3>
-    <div style="font-size:12px;opacity:.7">POST /api/projects<br>POST /api/media/import<br>POST /api/timeline/clips<br>POST /api/render</div>
+    <h3>Clip seleccionado</h3>
+    <div id="clipInfo" style="font-size:12px;opacity:.85;white-space:pre-wrap">Ninguno</div>
+    <h3>API agente</h3>
+    <div style="font-size:11px;opacity:.7;line-height:1.5">POST /api/projects<br>POST /api/media/import<br>POST /api/timeline/clips<br>POST /api/timeline/cut<br>POST /api/timeline/effects<br>POST /api/render<br>GET /api/plugins</div>
   </div>
 </main>
 <script>
-const log = (...a)=>{document.getElementById('log').textContent += a.join(' ')+'\n'}
-let projectId = localStorage.getItem('pid')||'';
+const log = (...a) => {
+  const el = document.getElementById('log');
+  el.textContent += a.map(x => typeof x === 'object' ? JSON.stringify(x) : x).join(' ') + '\n';
+  el.scrollTop = el.scrollHeight;
+};
+let projectId = localStorage.getItem('pid') || '';
+let project = null, selectedMediaId = null, selectedClipId = null;
 document.getElementById('projId').value = projectId;
 
-document.getElementById('newProj').onclick=async()=>{
-  const r=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Demo'})});
-  const j=await r.json(); projectId=j.id; localStorage.setItem('pid',projectId); document.getElementById('projId').value=projectId; log('Nuevo proyecto',projectId)
+async function api(path, opts = {}) {
+  const r = await fetch(path, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
 }
-document.getElementById('loadProj').onclick=()=>{projectId=document.getElementById('projId').value.trim(); localStorage.setItem('pid',projectId); load()}
-document.getElementById('importBtn').onclick=()=>document.getElementById('fileInp').click()
-document.getElementById('fileInp').onchange=async(e)=>{
-  for(const f of e.target.files){ const fd=new FormData(); fd.append('file',f); const r=await fetch('/api/media/import',{method:'POST',body:fd}); const j=await r.json(); log('Importado',j.filename) }
+
+document.getElementById('newProj').onclick = async () => {
+  const j = await api('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Demo' }) });
+  projectId = j.id; localStorage.setItem('pid', projectId);
+  document.getElementById('projId').value = projectId;
+  log('Nuevo proyecto', projectId); await load();
+};
+document.getElementById('loadProj').onclick = () => { projectId = document.getElementById('projId').value.trim(); localStorage.setItem('pid', projectId); load(); };
+document.getElementById('refresh').onclick = () => load();
+document.getElementById('importBtn').onclick = () => document.getElementById('fileInp').click();
+document.getElementById('fileInp').onchange = async (e) => {
+  if (!projectId) return alert('Crea o carga un proyecto primero');
+  for (const f of e.target.files) {
+    const fd = new FormData(); fd.append('file', f); fd.append('projectId', projectId);
+    const r = await fetch('/api/media/import', { method: 'POST', body: fd });
+    const j = await r.json();
+    if (!r.ok) { log('Error', j.error); continue; }
+    log('Importado', j.filename, `${(j.duration||0).toFixed(2)}s`);
+  }
+  await load();
+};
+document.getElementById('addClip').onclick = () => addClip('v1');
+document.getElementById('addClipAudio').onclick = () => addClip('a1');
+async function addClip(trackId) {
+  if (!projectId) return alert('Proyecto requerido');
+  if (!selectedMediaId) return alert('Selecciona un medio');
+  const j = await api('/api/timeline/clips', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, trackId, mediaId: selectedMediaId }) });
+  log('Clip', j.clipId, trackId); await load();
 }
-document.getElementById('addClip').onclick=async()=>{
-  if(!projectId) return alert('Crea/carga proyecto'); 
-  await fetch('/api/timeline/clips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,trackId:'v1',clip:{start:0,duration:5}})}); log('Clip añadido'); load()
+document.getElementById('cutClip').onclick = async () => {
+  if (!selectedClipId) return alert('Selecciona un clip');
+  const clip = findClip(selectedClipId); if (!clip) return;
+  const j = await api('/api/timeline/cut', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: selectedClipId, atRelative: clip.duration / 2 }) });
+  log('Cortado', j.left?.id, '+', j.right?.id); selectedClipId = j.left?.id; await load();
+};
+async function addEffect(effectId) {
+  if (!selectedClipId) return alert('Selecciona un clip');
+  await api('/api/timeline/effects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, clipId: selectedClipId, effectId, params: { duration: 1 } }) });
+  log('Efecto', effectId); await load();
 }
-document.getElementById('renderBtn').onclick=async()=>{
-  const r=await fetch('/api/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId,width:+document.getElementById('width').value,height:+document.getElementById('height').value})});
-  const j=await r.json(); log('Render',j.jobId); poll(j.jobId)
+document.getElementById('fadeIn').onclick = () => addEffect('effect.fade_in');
+document.getElementById('fadeOut').onclick = () => addEffect('effect.fade_out');
+document.getElementById('renderBtn').onclick = async () => {
+  if (!projectId) return alert('Proyecto requerido');
+  const j = await api('/api/render', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, width: +document.getElementById('width').value, height: +document.getElementById('height').value }) });
+  log('Render', j.jobId);
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 1000));
+    const st = await api('/api/render/' + j.jobId);
+    log('Job', st.status, st.url || st.error || '');
+    if (st.status === 'done') { if (st.url) document.getElementById('preview').src = st.url; break; }
+    if (st.status === 'error') break;
+  }
+};
+function findClip(id) {
+  if (!project) return null;
+  for (const t of project.timeline.tracks) { const c = t.clips.find(x => x.id === id); if (c) return c; }
+  return null;
 }
-async function poll(jobId){ for(let i=0;i<20;i++){ await new Promise(r=>setTimeout(r,1000)); const r=await fetch('/api/render/'+jobId); const j=await r.json(); log('Job',j.status); if(j.status==='done'||j.status==='error') break; } }
-async function load(){ if(!projectId) return; const r=await fetch('/api/projects/'+projectId); const p=await r.json(); log('Cargado',p.name); const tl=document.getElementById('timeline'); tl.innerHTML=''; p.timeline.tracks.forEach(t=>{ const d=document.createElement('div'); d.className='track'; d.textContent=`${t.type.toUpperCase()} ${t.id} - ${t.clips.length} clips`; tl.appendChild(d); }) }
-load();
+function renderMedia() {
+  const el = document.getElementById('mediaList'); el.innerHTML = '';
+  (project?.media || []).forEach(m => {
+    const d = document.createElement('div');
+    d.className = 'media-item' + (m.id === selectedMediaId ? ' selected' : '');
+    d.textContent = `${m.filename} · ${(m.duration || 0).toFixed(1)}s`;
+    d.onclick = () => { selectedMediaId = m.id; if (m.url) document.getElementById('preview').src = m.url; renderMedia(); };
+    el.appendChild(d);
+  });
+}
+function renderTimeline() {
+  const el = document.getElementById('timeline'); el.innerHTML = '';
+  (project?.timeline?.tracks || []).forEach(t => {
+    const box = document.createElement('div'); box.className = 'track';
+    box.innerHTML = `<strong>${t.type.toUpperCase()} ${t.id}</strong> · ${t.clips.length} clips<br>`;
+    t.clips.forEach(c => {
+      const chip = document.createElement('span');
+      chip.className = 'clip' + (c.id === selectedClipId ? ' selected' : '');
+      chip.textContent = `${c.filename || 'clip'} @${c.start.toFixed(1)}s (${c.duration.toFixed(1)}s)`;
+      chip.onclick = () => {
+        selectedClipId = c.id;
+        document.getElementById('clipInfo').textContent = `id=${c.id}\nstart=${c.start}\nin=${c.inPoint} out=${c.outPoint}\ndur=${c.duration}\neffects=${(c.effects||[]).map(e=>e.effectId).join(',')||'—'}`;
+        const media = (project.media || []).find(m => m.id === c.mediaId);
+        if (media?.url) document.getElementById('preview').src = media.url;
+        renderTimeline();
+      };
+      box.appendChild(chip);
+    });
+    el.appendChild(box);
+  });
+}
+async function loadPlugins() {
+  try {
+    const j = await api('/api/plugins');
+    document.getElementById('plugins').innerHTML = (j.plugins || []).map(p => `<div><code>${p.id}</code> — ${p.name}</div>`).join('') || 'Sin plugins';
+  } catch (e) { document.getElementById('plugins').textContent = e.message; }
+}
+async function load() {
+  if (!projectId) return;
+  try {
+    project = await api('/api/projects/' + projectId);
+    log('Cargado', project.name, 'media:', project.media?.length);
+    renderMedia(); renderTimeline();
+  } catch (e) { log('Error', e.message); }
+}
+loadPlugins();
+if (projectId) load();
 </script>
 </body>
 </html>
