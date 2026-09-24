@@ -1,0 +1,1 @@
+{"id":"effect.vflip","name":"Flip vertical","version":"1.0.0","category":"Edición y transformación de clips","type":"effect","params":{},"ffmpeg":{"filter":"vflip"},"license":"MIT-compatible (FFmpeg)"}

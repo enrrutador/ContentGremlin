@@ -1,17 +1,10 @@
 {
-  "version": "3.0",
-  "note": "Executable modules only",
+  "version": "4.0",
+  "count": 15,
   "implemented": [
-    "effect.blur",
-    "effect.brightness",
-    "effect.contrast",
-    "effect.crop",
-    "transition.crossfade",
-    "effect.fade_in",
-    "effect.fade_out",
-    "effect.scale",
-    "effect.title",
-    "effect.volume"
-  ],
-  "count": 10
+    "effect.blur", "effect.brightness", "effect.contrast", "effect.crop",
+    "effect.fade_in", "effect.fade_out", "effect.hflip", "effect.loudnorm",
+    "effect.scale", "effect.sepia", "effect.speed", "effect.title",
+    "effect.vflip", "effect.volume", "transition.crossfade"
+  ]
 }

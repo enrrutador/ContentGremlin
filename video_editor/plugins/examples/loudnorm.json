@@ -1,0 +1,1 @@
+{"id":"effect.loudnorm","name":"Loudnorm","version":"1.0.0","category":"Audio y mezcla","type":"effect","params":{},"ffmpeg":{"filter":"loudnorm"},"license":"MIT-compatible (FFmpeg)"}

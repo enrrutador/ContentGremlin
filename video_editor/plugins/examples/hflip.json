@@ -1,0 +1,1 @@
+{"id":"effect.hflip","name":"Flip horizontal","version":"1.0.0","category":"Edición y transformación de clips","type":"effect","params":{},"ffmpeg":{"filter":"hflip"},"license":"MIT-compatible (FFmpeg)"}

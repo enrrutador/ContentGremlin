@@ -1,0 +1,1 @@
+{"id":"effect.speed","name":"Speed","version":"1.0.0","category":"Edición y transformación de clips","type":"effect","params":{"rate":{"type":"number","default":1,"min":0.25,"max":4}},"ffmpeg":{"filter":"setpts=1/{rate}*PTS"},"license":"MIT-compatible (FFmpeg)"}
