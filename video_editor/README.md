@@ -1,13 +1,6 @@
 # Video Editor Local — Phase 3
 
-Editor local tipo Premiere + API para agentes + FFmpeg.
-
-## Features
-- Timeline multipista, cut, ripple, reorder, crossfade (xfade)
-- Preview frame at t, OTIO JSON export
-- Persistent render jobs
-- 10 real plugins (fade, scale, volume, blur, brightness, contrast, crop, title, crossfade)
-- ContentGremlin integration (`/api/integrate/gremlin`)
+Editor local + API agentes + FFmpeg.
 
 ## Run
 ```bash
@@ -17,6 +10,13 @@ node server.js
 ```
 http://localhost:3000
 
-Requires: Node ≥ 18, ffmpeg, ffprobe.
+Requires Node ≥ 18, ffmpeg, ffprobe.
+
+`server.js` joins `server.part0.js` + `server.part1.js` + `server.part2.js` at startup.
+
+## Features
+- Timeline, cut, ripple, reorder, crossfade
+- Preview frame, OTIO export, persistent jobs
+- 10 plugins, Gremlin bridge (`POST /api/integrate/gremlin`)
 
 See `docs/AGENT_SKILL.md` and `docs/PHASE3.md`.

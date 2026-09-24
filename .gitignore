@@ -36,6 +36,10 @@ dist/
 build/
 *.egg-info/
 
-# Node
-node_modules/
+# Video editor runtime (never commit)
 video_editor/node_modules/
+video_editor/media/
+video_editor/renders/
+video_editor/jobs/
+video_editor/projects/
+video_editor/.server_built.mjs

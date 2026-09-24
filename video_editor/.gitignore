@@ -1,0 +1,8 @@
+node_modules/
+media/
+renders/
+jobs/
+projects/
+.server_built.mjs
+*.log
+.DS_Store
