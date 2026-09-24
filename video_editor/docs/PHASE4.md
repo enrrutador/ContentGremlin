@@ -1,9 +1,16 @@
-# Phase 4
+# Phase 4 (implementado)
 
-- Render progress (`percent`, `phase` on job)
-- Preview montaje `POST /api/preview/montage`
-- OTIO import `POST /api/projects/:id/otio/import`
-- Plugins: +sepia, hflip, vflip, speed, loudnorm (15 total)
-- UI: progress bar, Gremlin path, OTIO buttons
+## Features
+- Render progress: job.percent + job.phase
+- POST /api/preview/montage (preview 640x360)
+- POST /api/projects/:id/otio/import
+- Plugins: sepia, hflip, vflip, speed, loudnorm (15 total)
+- UI: barra progreso, path Gremlin, OTIO export/import
 
-Server source: `src/part0.js` … `src/part7.js` joined by `server.js`.
+## Arranque
+```bash
+cd video_editor && npm install && node server.js
+```
+
+El servidor completo vive en `server.monolith.js` (local) o `server.payload.a.b64`+`server.payload.b.b64`.
+Si solo tenés el monolito: `USE_MONOLITH=1 node server.js`
