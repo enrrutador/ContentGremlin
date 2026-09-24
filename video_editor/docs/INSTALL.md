@@ -1,4 +1,4 @@
-# Install video_editor
+# Install
 
 ```bash
 git clone https://github.com/enrrutador/ContentGremlin.git
@@ -9,7 +9,7 @@ node server.js
 
 http://localhost:3000
 
-Requires: Node ≥ 18, ffmpeg, ffprobe.
+Requires Node ≥ 18, ffmpeg, ffprobe.
 
-`server.js` decodes `server.payload.b64` (full Phase 3 server, gzip+base64) and runs it.
-Optional: set `USE_MONOLITH=1` if you also have `server.monolith.js`.
+The full Phase 3 server is stored as `server.payload.{0,1,2,3}.b64` (gzip+base64).
+`server.js` joins, decodes, and runs it automatically.
