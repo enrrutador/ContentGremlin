@@ -1,20 +1,22 @@
-# Video Editor Local — Phase 2
+# Video Editor Local — Phase 3
 
-## New in Phase 2
-- Timeline preview frame: `GET /api/preview/frame?projectId=&t=`
-- Reorder clips: `POST /api/timeline/move` with `order: [ids]`
-- Ripple delete: `DELETE .../clips/:id?ripple=true`
-- Close gaps: `POST /api/timeline/ripple`
-- Crossfade in render (ffmpeg `xfade`)
-- Agent one-shot: `POST /api/agent/assemble`
+Editor local tipo Premiere + API para agentes + FFmpeg.
+
+## Features
+- Timeline multipista, cut, ripple, reorder, crossfade (xfade)
+- Preview frame at t, OTIO JSON export
+- Persistent render jobs
+- 10 real plugins (fade, scale, volume, blur, brightness, contrast, crop, title, crossfade)
+- ContentGremlin integration (`/api/integrate/gremlin`)
 
 ## Run
 ```bash
-cd video_editor && npm install && node server.js
+cd video_editor
+npm install
+node server.js
 ```
-Open http://localhost:3000
+http://localhost:3000
 
-See `docs/AGENT_SKILL.md` for agent workflow.
+Requires: Node ≥ 18, ffmpeg, ffprobe.
 
-## Phase 1 (still included)
-Import + ffprobe, timeline clips, cut, trim, effects, render concat.
+See `docs/AGENT_SKILL.md` and `docs/PHASE3.md`.
