@@ -2,13 +2,28 @@
 
 ```
 server.js
-  └─ src/app.js          # Express + rutas (runtime)
-       ├─ src/lib/project.js
-       ├─ src/lib/media.js
+  └─ src/app.js
+       ├─ routes/projects.js
+       ├─ routes/media.js
+       ├─ routes/timeline.js
+       ├─ routes/preview.js
+       ├─ routes/render.js
+       ├─ routes/agent.js
+       ├─ lib/project.js
+       ├─ lib/media.js
+       ├─ lib/render.js
        ├─ ../lib/otio.js
        └─ ../lib/jobs.js
 ```
 
-`app.js` usa helpers de `lib/`. Siguiente paso: `src/routes/*.js` (projects, timeline, render, agent).
+## Render endurecido
 
-Render: FFmpeg concat/xfade/filtros. Predecible, no NLE pro.
+- Valida clips (path, duración)
+- Límite ~4h de timeline
+- Limpia tmp al terminar o fallar
+- Hints en errores FFmpeg
+- Jobs: queued → running → done|error
+
+## Extender
+
+`export function registerFoo(app, ctx)` en `routes/foo.js` y registrarlo en `app.js`.
