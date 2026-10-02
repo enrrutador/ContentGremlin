@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Optional
 import re, json, subprocess
 from core.config import DATA_DIR
+from core.storage import get_dir
 
-SUB_DIR = DATA_DIR / "subtitles"
-SUB_DIR.mkdir(parents=True, exist_ok=True)
+SUB_DIR = get_dir("subtitles")
 
 def _probe_duration(path: Path) -> Optional[float]:
     try:

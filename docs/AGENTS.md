@@ -33,6 +33,8 @@ The skills encode the expert workflow so the agent only needs to **call the righ
 | Thumbnail | `skills/thumbnail.md` | `POST /api/generate_thumbnail` |
 | Video | `skills/video.md` | `POST /api/create_video` or `full_pipeline` |
 | Full production | `skills/super_pipeline.md` | `POST /api/super_pipeline` |
+| Background production | — | `POST /api/super_pipeline_async` (returns job id) |
+| Job status | — | `GET /api/jobs/{id}` |
 | Upload | `skills/upload.md` | `POST /api/upload_video` |
 | Safety | `skills/safety.md` | always |
 

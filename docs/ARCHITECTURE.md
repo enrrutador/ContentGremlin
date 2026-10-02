@@ -23,7 +23,7 @@ ContentGremlin is a modular, local-first application built with:
 ```
 contentgremlin/
 ├── api/                 # FastAPI routers and endpoints
-├── core/                # Mode manager, profile, safety rules, config
+├── core/                # Mode manager, safety rules, config, job registry, storage
 ├── providers/           # LLM, TTS, YouTube, etc. (pluggable)
 ├── modules/             # Business logic
 │   ├── analyzer.py

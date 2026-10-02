@@ -10,11 +10,10 @@ from modules.video_creator import burn_subtitles
 from providers.image import ImageProvider
 from providers.video_gen import VideoGenProvider
 from providers.tts import TTSProvider
+from core.storage import get_dir
 
-OUT_DIR = DATA_DIR / "cinematic" / "out"
-SCENE_DIR = DATA_DIR / "cinematic" / "scenes"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
-SCENE_DIR.mkdir(parents=True, exist_ok=True)
+OUT_DIR = get_dir("cinematic_out")
+SCENE_DIR = get_dir("cinematic_scenes")
 
 def _run(cmd: list[str], timeout: int = 600) -> None:
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
