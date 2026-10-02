@@ -22,7 +22,8 @@ def load_plugin(path: Path, app_context: dict | None = None) -> dict[str, Any]:
     spec.loader.exec_module(mod)
     name = getattr(mod, "NAME", path.stem)
     if hasattr(mod, "register"):
-        mod.register(app_context or {})
+        context = app_context if app_context is not None else {}
+        mod.register(context)
     return {"name": name, "module": path.stem, "loaded": True}
 
 def load_all(app_context: dict | None = None) -> list[dict[str, Any]]:
