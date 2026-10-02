@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from pathlib import Path
 
 from api.routes import router
+from core import __version__
 from core.config import settings, DATA_DIR, CREDENTIALS_DIR
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -16,7 +17,7 @@ ROOT = Path(__file__).parent
 app = FastAPI(
     title="ContentGremlin",
     description="Local toolkit for original YouTube content — agent-friendly API",
-    version="0.2.0",
+    version=__version__,
 )
 app.include_router(router, prefix="/api")
 
@@ -43,7 +44,7 @@ async def health():
     return {
         "status": "ok",
         "service": "ContentGremlin",
-        "version": "0.2.0",
+        "version": __version__,
         "editor": "http://127.0.0.1:3000",
     }
 
