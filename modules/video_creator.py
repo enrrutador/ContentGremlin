@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Optional
 import subprocess, json, re
 from core.config import DATA_DIR
+from core.storage import get_dir
 
-VIDEO_DIR = DATA_DIR / "videos"
-VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+VIDEO_DIR = get_dir("videos")
 
 TEMPLATES = {
     "dark_minimal": {"bg": "0x0b1220", "accent": "0x22c55e", "title_color": "white", "subtitle_color": "0x94a3b8"},

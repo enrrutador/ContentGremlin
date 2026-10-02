@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 import httpx
 from core.config import settings, DATA_DIR
+from core.storage import get_dir
 
-IMAGE_DIR = DATA_DIR / "cinematic" / "images"
-IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+IMAGE_DIR = get_dir("cinematic_images")
 
 class ImageProvider:
     def __init__(self):
