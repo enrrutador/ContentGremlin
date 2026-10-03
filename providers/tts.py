@@ -9,9 +9,9 @@ import subprocess
 import tempfile
 import httpx
 from core.config import settings, load_user_profile, DATA_DIR
+from core.storage import get_dir
 
-AUDIO_DIR = DATA_DIR / "audio"
-AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+AUDIO_DIR = get_dir("audio")
 
 
 class TTSProvider:

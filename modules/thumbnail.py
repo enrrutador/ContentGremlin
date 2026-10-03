@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Optional
 import subprocess
 from core.config import DATA_DIR
+from core.storage import get_dir
 
-THUMB_DIR = DATA_DIR / "thumbnails"
-THUMB_DIR.mkdir(parents=True, exist_ok=True)
+THUMB_DIR = get_dir("thumbnails")
 
 
 def create_thumbnail(

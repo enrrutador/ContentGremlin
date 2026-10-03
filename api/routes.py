@@ -3,10 +3,12 @@ ContentGremlin - API Routes
 Clean endpoints designed for both the web UI and external agents.
 """
 
+from typing import Optional, Literal, Any
+import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional, Literal, Any
 from core import __version__
+from core.jobs import submit_job, get_job, list_jobs
 from core.mode_manager import ModeManager
 from core.config import load_user_profile, save_user_profile, settings
 from core.safety import safety_report, can_upload
@@ -302,33 +304,61 @@ async def api_upload_video(req: UploadRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+async def _run_super_pipeline(req: SuperPipelineRequest) -> dict:
+    """Full production pipeline: TTS -> subtitles -> video -> metadata -> thumbnail."""
+    tts = TTSProvider()
+    audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
+    subs = generate_subtitles(req.script, req.title, audio_path=audio_path)
+    video_result = create_video_from_script_and_audio(
+        script=req.script, audio_path=audio_path, title=req.title, output_name=req.title,
+        srt_path=Path(subs["srt_path"]), burn_subs=req.burn_subtitles,
+    )
+    meta = await generate_metadata(req.script, idea=req.idea)
+    thumb = create_thumbnail(meta.get("title") or req.title, output_name=req.title)
+    entry = add_item(
+        item_type="full_project", title=meta.get("title") or req.title,
+        content={
+            "script": req.script, "audio_path": str(audio_path),
+            "video_path": video_result["video_path"], "srt_path": subs["srt_path"],
+            "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb), "metadata": meta,
+        },
+    )
+    return {
+        "success": True, "audio_path": str(audio_path), "video_path": video_result["video_path"],
+        "srt_path": subs["srt_path"], "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb),
+        "metadata": meta, "library_id": entry["id"], "youtube_configured": is_youtube_configured(),
+    }
+
+
 @router.post("/super_pipeline")
 async def api_super_pipeline(req: SuperPipelineRequest):
     try:
-        tts = TTSProvider()
-        audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
-        subs = generate_subtitles(req.script, req.title, audio_path=audio_path)
-        video_result = create_video_from_script_and_audio(
-            script=req.script, audio_path=audio_path, title=req.title, output_name=req.title,
-            srt_path=Path(subs["srt_path"]), burn_subs=req.burn_subtitles,
-        )
-        meta = await generate_metadata(req.script, idea=req.idea)
-        thumb = create_thumbnail(meta.get("title") or req.title, output_name=req.title)
-        entry = add_item(
-            item_type="full_project", title=meta.get("title") or req.title,
-            content={
-                "script": req.script, "audio_path": str(audio_path),
-                "video_path": video_result["video_path"], "srt_path": subs["srt_path"],
-                "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb), "metadata": meta,
-            },
-        )
-        return {
-            "success": True, "audio_path": str(audio_path), "video_path": video_result["video_path"],
-            "srt_path": subs["srt_path"], "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb),
-            "metadata": meta, "library_id": entry["id"], "youtube_configured": is_youtube_configured(),
-        }
+        return await _run_super_pipeline(req)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/super_pipeline_async")
+async def api_super_pipeline_async(req: SuperPipelineRequest):
+    """Non-blocking variant. Returns a job id; poll GET /api/jobs/{job_id}."""
+    job = submit_job("super_pipeline", lambda: asyncio.run(_run_super_pipeline(req)))
+    return {"success": True, "job_id": job["id"], "status": job["status"], "poll": f"/api/jobs/{job['id']}"}
+
+
+
+
+
+@router.get("/jobs")
+async def api_list_jobs(limit: int = 50):
+    return {"jobs": list_jobs(limit=limit)}
+
+
+@router.get("/jobs/{job_id}")
+async def api_get_job(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
 
 
 @router.get("/agent/skills")
@@ -356,7 +386,8 @@ async def api_agent_skills():
             "POST /api/analyze_channel",
             "POST /api/generate_ideas",
             "POST /api/write_script",
-            "POST /api/super_pipeline",
+            "POST /api/super_pipeline (blocking) or /api/super_pipeline_async (job)",
+            "GET /api/jobs/{job_id} (poll)",
             "POST /api/upload_video (optional)",
         ],
     }

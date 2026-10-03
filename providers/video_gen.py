@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Optional
 import httpx
 from core.config import settings, DATA_DIR
+from core.storage import get_dir
 
-CLIP_DIR = DATA_DIR / "cinematic" / "clips"
-CLIP_DIR.mkdir(parents=True, exist_ok=True)
+CLIP_DIR = get_dir("cinematic_clips")
 
 class VideoGenProvider:
     def __init__(self):
