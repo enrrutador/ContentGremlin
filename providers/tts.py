@@ -5,6 +5,8 @@ Supports OpenAI TTS and ElevenLabs (optional).
 
 from pathlib import Path
 from typing import Optional
+import subprocess
+import tempfile
 import httpx
 from core.config import settings, load_user_profile, DATA_DIR
 
@@ -44,8 +46,17 @@ class TTSProvider:
         voice = voice or settings.openai_tts_voice or "alloy"
         chunks = self._split_text(text, max_chars=4000)
 
-        audio_bytes = await self._openai_single(chunks[0], voice)
-        out_path.write_bytes(audio_bytes)
+        if len(chunks) == 1:
+            out_path.write_bytes(await self._openai_single(chunks[0], voice))
+            return out_path
+
+        with tempfile.TemporaryDirectory(prefix="gremlin_tts_") as tmp:
+            parts = []
+            for i, chunk in enumerate(chunks):
+                part = Path(tmp) / f"part_{i:03d}.mp3"
+                part.write_bytes(await self._openai_single(chunk, voice))
+                parts.append(part)
+            self._concat_audio(parts, out_path)
         return out_path
 
     async def _openai_single(self, text: str, voice: str) -> bytes:
@@ -70,12 +81,28 @@ class TTSProvider:
 
     async def _elevenlabs(self, text: str, out_path: Path, voice: Optional[str]) -> Path:
         voice_id = voice or "21m00Tcm4TlvDq8ikWAM"
+        chunks = self._split_text(text, max_chars=4500)
+
+        if len(chunks) == 1:
+            out_path.write_bytes(await self._elevenlabs_single(chunks[0], voice_id))
+            return out_path
+
+        with tempfile.TemporaryDirectory(prefix="gremlin_tts_") as tmp:
+            parts = []
+            for i, chunk in enumerate(chunks):
+                part = Path(tmp) / f"part_{i:03d}.mp3"
+                part.write_bytes(await self._elevenlabs_single(chunk, voice_id))
+                parts.append(part)
+            self._concat_audio(parts, out_path)
+        return out_path
+
+    async def _elevenlabs_single(self, text: str, voice_id: str) -> bytes:
         headers = {
             "xi-api-key": settings.elevenlabs_api_key,
             "Content-Type": "application/json",
         }
         payload = {
-            "text": text[:5000],
+            "text": text,
             "model_id": "eleven_multilingual_v2",
             "voice_settings": {"stability": 0.4, "similarity_boost": 0.8},
         }
@@ -86,8 +113,25 @@ class TTSProvider:
                 json=payload,
             )
             resp.raise_for_status()
-            out_path.write_bytes(resp.content)
-            return out_path
+            return resp.content
+
+    def _concat_audio(self, parts: list[Path], out_path: Path) -> None:
+        """Join chunked TTS output into a single MP3 (stream copy, no re-encode)."""
+        list_file = out_path.parent / f".{out_path.stem}_concat.txt"
+        lines = []
+        for part in parts:
+            escaped = str(part.resolve()).replace("'", "'\\''")
+            lines.append(f"file '{escaped}'")
+        list_file.write_text("\n".join(lines), encoding="utf-8")
+        try:
+            result = subprocess.run(
+                ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_file), "-c", "copy", str(out_path)],
+                capture_output=True, text=True, timeout=600,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"FFmpeg concat error: {result.stderr[:800]}")
+        finally:
+            list_file.unlink(missing_ok=True)
 
     def _split_text(self, text: str, max_chars: int = 4000) -> list[str]:
         if len(text) <= max_chars:
@@ -95,12 +139,21 @@ class TTSProvider:
         chunks = []
         current = ""
         for sentence in text.replace("\n", " ").split(". "):
-            if len(current) + len(sentence) + 2 > max_chars:
+            piece = sentence + ". "
+            if len(current) + len(piece) > max_chars:
                 if current:
                     chunks.append(current.strip())
-                current = sentence + ". "
+                while len(piece) > max_chars:
+                    cut = piece.rfind(" ", 0, max_chars)
+                    if cut <= 0:
+                        cut = max_chars
+                    head = piece[:cut].strip()
+                    if head:
+                        chunks.append(head)
+                    piece = piece[cut:].lstrip()
+                current = piece
             else:
-                current += sentence + ". "
+                current += piece
         if current.strip():
             chunks.append(current.strip())
-        return chunks or [text[:max_chars]]
+        return [c for c in chunks if c] or [text[:max_chars]]

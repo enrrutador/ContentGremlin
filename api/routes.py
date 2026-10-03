@@ -6,6 +6,7 @@ Clean endpoints designed for both the web UI and external agents.
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Any
+from core import __version__
 from core.mode_manager import ModeManager
 from core.config import load_user_profile, save_user_profile, settings
 from core.safety import safety_report, can_upload
@@ -61,7 +62,7 @@ async def get_status():
         "llm_provider": profile.get("llm_provider", "not set"),
         "youtube_configured": is_youtube_configured(),
         "safety": safety_report(),
-        "version": "0.1.0",
+        "version": __version__,
     }
 
 
@@ -223,6 +224,7 @@ async def api_delete_library_item(item_id: str):
 class SubtitlesRequest(BaseModel):
     script: str
     title: Optional[str] = "subtitles"
+    audio_path: Optional[str] = None
 
 
 class MetadataRequest(BaseModel):
@@ -257,7 +259,7 @@ class SuperPipelineRequest(BaseModel):
 @router.post("/generate_subtitles")
 async def api_generate_subtitles(req: SubtitlesRequest):
     try:
-        result = generate_subtitles(req.script, req.title)
+        result = generate_subtitles(req.script, req.title, audio_path=req.audio_path)
         entry = add_item(item_type="subtitles", title=req.title, content=result)
         return {"success": True, **result, "library_id": entry["id"]}
     except Exception as e:
@@ -305,7 +307,7 @@ async def api_super_pipeline(req: SuperPipelineRequest):
     try:
         tts = TTSProvider()
         audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
-        subs = generate_subtitles(req.script, req.title)
+        subs = generate_subtitles(req.script, req.title, audio_path=audio_path)
         video_result = create_video_from_script_and_audio(
             script=req.script, audio_path=audio_path, title=req.title, output_name=req.title,
             srt_path=Path(subs["srt_path"]), burn_subs=req.burn_subtitles,
@@ -345,7 +347,7 @@ async def api_agent_skills():
         system_prompt = sp.read_text(encoding="utf-8")
     return {
         "name": "ContentGremlin",
-        "version": "0.1.0",
+        "version": __version__,
         "base_url": "http://localhost:8000",
         "system_prompt": system_prompt,
         "skills": skills,

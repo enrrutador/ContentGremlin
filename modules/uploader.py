@@ -5,9 +5,13 @@ Optional. Only works when YouTube Data API credentials are configured.
 
 from pathlib import Path
 from typing import Optional, Any
+import time
 from core.config import settings, load_user_profile
 from core.safety import can_upload
 from core.mode_manager import ModeManager
+
+RETRYABLE_HTTP_STATUS = {500, 502, 503, 504}
+UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024
 
 
 def is_youtube_configured() -> bool:
@@ -22,7 +26,6 @@ def _get_youtube_service():
         from google.auth.transport.requests import Request
         from google.oauth2.credentials import Credentials
         from googleapiclient.discovery import build
-        import pickle
     except ImportError:
         raise RuntimeError(
             "Google API libraries not installed. Run: pip install google-api-python-client google-auth-oauthlib"
@@ -35,13 +38,9 @@ def _get_youtube_service():
 
     if token_path.exists():
         try:
-            with open(token_path, "rb") as f:
-                creds = pickle.load(f)
+            creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
         except Exception:
-            try:
-                creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
-            except Exception:
-                creds = None
+            creds = None
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -54,10 +53,37 @@ def _get_youtube_service():
             flow = InstalledAppFlow.from_client_secrets_file(str(secrets_path), SCOPES)
             creds = flow.run_local_server(port=0)
         token_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(token_path, "wb") as f:
-            pickle.dump(creds, f)
+        token_path.write_text(creds.to_json(), encoding="utf-8")
 
     return build("youtube", "v3", credentials=creds)
+
+
+def _is_retryable(error: Exception) -> bool:
+    status = getattr(getattr(error, "resp", None), "status", None)
+    if status in RETRYABLE_HTTP_STATUS:
+        return True
+    if isinstance(error, (ConnectionError, TimeoutError, OSError)):
+        return True
+    return type(error).__name__ in {"ServerNotFoundError", "TransportError", "ProtocolError"}
+
+
+def _resumable_upload(request, max_retries: int = 5, base_delay: float = 1.0) -> dict:
+    """Drive a resumable upload to completion with exponential backoff.
+
+    `next_chunk()` resumes from the last committed byte, so retrying is safe.
+    """
+    retries = 0
+    response = None
+    while response is None:
+        try:
+            _, response = request.next_chunk()
+            retries = 0
+        except Exception as error:
+            if not _is_retryable(error) or retries >= max_retries:
+                raise
+            time.sleep(base_delay * (2 ** retries))
+            retries += 1
+    return response
 
 
 def upload_video(
@@ -102,12 +128,10 @@ def upload_video(
 
     from googleapiclient.http import MediaFileUpload
 
-    media = MediaFileUpload(str(path), chunksize=-1, resumable=True)
+    media = MediaFileUpload(str(path), chunksize=UPLOAD_CHUNK_SIZE, resumable=True)
     request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
 
-    response = None
-    while response is None:
-        status, response = request.next_chunk()
+    response = _resumable_upload(request)
 
     video_id = response["id"]
     result = {
