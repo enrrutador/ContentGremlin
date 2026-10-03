@@ -17,8 +17,15 @@ def _load() -> list[dict]:
     if LIBRARY_FILE.exists():
         try:
             with open(LIBRARY_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                return data if isinstance(data, list) else []
         except Exception:
+            # Backup del archivo corrupto en vez de perder historial en silencio
+            try:
+                backup = LIBRARY_FILE.with_suffix(".corrupt.bak")
+                LIBRARY_FILE.rename(backup)
+            except Exception:
+                pass
             return []
     return []
 

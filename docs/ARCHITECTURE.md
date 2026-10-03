@@ -23,18 +23,27 @@ ContentGremlin is a modular, local-first application built with:
 ```
 contentgremlin/
 ├── api/                 # FastAPI routers and endpoints
-├── core/                # Mode manager, safety rules, config, job registry, storage
-├── providers/           # LLM, TTS, YouTube, etc. (pluggable)
+├── core/                # config, mode_manager, safety, jobs, storage
+├── providers/           # llm, tts, image, video_gen (pluggable)
 ├── modules/             # Business logic
 │   ├── analyzer.py
 │   ├── idea_generator.py
 │   ├── script_writer.py
-│   ├── voice.py
-│   ├── video.py
+│   ├── subtitles.py
+│   ├── video_creator.py
+│   ├── cinematic.py
+│   ├── scene_planner.py
 │   ├── metadata.py
+│   ├── thumbnail.py
+│   ├── library.py
+│   ├── editor_bridge.py
 │   └── uploader.py
 ├── plugins/             # User and community plugins
-├── ui/                  # Frontend assets and templates
+├── templates/           # Web UI canónica (servida en /)
+├── skills/              # Playbooks para agentes
+├── docs/                # Documentación producto
+├── video_editor/        # Editor local Node/Express :3000
+├── video_engine/        # Reservado (pipeline avanzado futuro)
 ├── data/                # Local storage (profiles, history, etc.)
 └── main.py
 ```

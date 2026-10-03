@@ -161,6 +161,10 @@ class VideoRequest(BaseModel):
     audio_path: str
     title: str
     output_name: Optional[str] = None
+    # Compat con skills/video.md (opcionales, no rompen API existente)
+    script: Optional[str] = ""
+    burn_subtitles: bool = False
+    template: str = "dark_minimal"
 
 
 class FullPipelineRequest(BaseModel):
@@ -183,7 +187,20 @@ async def api_generate_voice(req: VoiceRequest):
 @router.post("/create_video")
 async def api_create_video(req: VideoRequest):
     try:
-        result = create_video_from_script_and_audio(script="", audio_path=Path(req.audio_path), title=req.title, output_name=req.output_name)
+        from modules.subtitles import generate_subtitles as _gen_subs
+
+        result = create_video_from_script_and_audio(
+            script=req.script or "", audio_path=Path(req.audio_path),
+            title=req.title, output_name=req.output_name, template=req.template,
+        )
+        # burn opcional pedido por skills/video.md
+        if req.burn_subtitles:
+            subs = _gen_subs(req.script or req.title, req.title)
+            from modules.video_creator import burn_subtitles as _burn
+
+            burned = _burn(Path(result["video_path"]), Path(subs["srt_path"]))
+            result["video_path"] = str(burned)
+            result["subtitles_burned"] = True
         entry = add_item(item_type="video", title=req.title, content=result["video_path"], meta=result)
         return {"success": True, **result, "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("video")}
     except Exception as e:
@@ -256,6 +273,9 @@ class SuperPipelineRequest(BaseModel):
     voice: Optional[str] = None
     burn_subtitles: bool = False
     idea: Optional[dict[str, Any]] = None
+    # Compat con skills/super_pipeline.md
+    open_in_editor: bool = False
+    template: str = "dark_minimal"
 
 
 @router.post("/generate_subtitles")
@@ -312,6 +332,7 @@ async def _run_super_pipeline(req: SuperPipelineRequest) -> dict:
     video_result = create_video_from_script_and_audio(
         script=req.script, audio_path=audio_path, title=req.title, output_name=req.title,
         srt_path=Path(subs["srt_path"]), burn_subs=req.burn_subtitles,
+        template=getattr(req, "template", "dark_minimal"),
     )
     meta = await generate_metadata(req.script, idea=req.idea)
     thumb = create_thumbnail(meta.get("title") or req.title, output_name=req.title)
@@ -323,11 +344,28 @@ async def _run_super_pipeline(req: SuperPipelineRequest) -> dict:
             "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb), "metadata": meta,
         },
     )
-    return {
+    out = {
         "success": True, "audio_path": str(audio_path), "video_path": video_result["video_path"],
         "srt_path": subs["srt_path"], "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb),
         "metadata": meta, "library_id": entry["id"], "youtube_configured": is_youtube_configured(),
+        "editor_url": None, "editor_project_id": None, "editor_error": None,
     }
+    # Bridge opcional al editor (skills/super_pipeline.md). No rompe el pipeline si falla.
+    if getattr(req, "open_in_editor", False):
+        try:
+            from modules.editor_bridge import send_to_editor
+
+            ed = await send_to_editor(
+                video_path=str(video_result["video_path"]),
+                media_paths=[str(video_result["video_path"])],
+                name=meta.get("title") or req.title,
+                auto_assemble=True,
+            )
+            out["editor_project_id"] = ed.get("projectId") or ed.get("project_id")
+            out["editor_url"] = ed.get("editor_url")
+        except Exception as e:
+            out["editor_error"] = str(e)[:500]
+    return out
 
 
 @router.post("/super_pipeline")
@@ -359,6 +397,70 @@ async def api_get_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+class CinematicRequest(BaseModel):
+    script: str
+    title: str = "cinematic"
+    voice: Optional[str] = None
+    burn_subtitles: bool = False
+    style: Optional[str] = None
+
+
+@router.get("/cinematic/status")
+async def api_cinematic_status():
+    from providers.image import ImageProvider
+    from providers.video_gen import VideoGenProvider
+
+    img = ImageProvider()
+    vid = VideoGenProvider()
+    return {
+        "image_provider": getattr(img, "provider", "openai"),
+        "image_configured": img.is_configured(),
+        "video_provider": getattr(vid, "provider", "none"),
+        "video_configured": vid.is_configured(),
+    }
+
+
+@router.post("/cinematic_pipeline")
+async def api_cinematic_pipeline(req: CinematicRequest):
+    try:
+        from modules.cinematic import create_cinematic_video
+
+        result = await create_cinematic_video(
+            script=req.script, title=req.title, voice=req.voice,
+            burn_subs=req.burn_subtitles, style=req.style,
+        )
+        entry = add_item(item_type="cinematic", title=req.title, content=result)
+        return {"success": True, **result, "library_id": entry["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class OpenInEditorRequest(BaseModel):
+    video_path: Optional[str] = None
+    name: str = "From Gremlin"
+    auto_assemble: bool = True
+    crossfade: float = 0
+    media_paths: Optional[list[str]] = None
+
+
+@router.post("/open_in_editor")
+async def api_open_in_editor(req: OpenInEditorRequest):
+    try:
+        from modules.editor_bridge import send_to_editor
+
+        result = await send_to_editor(
+            video_path=req.video_path,
+            media_paths=req.media_paths,
+            name=req.name,
+            auto_assemble=req.auto_assemble,
+            crossfade=req.crossfade,
+        )
+        add_item(item_type="editor_link", title=req.name, content=result)
+        return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Editor no disponible: {e}")
 
 
 @router.get("/agent/skills")

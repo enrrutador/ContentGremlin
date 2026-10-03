@@ -27,7 +27,17 @@ def _probe_duration(path: Path) -> float:
         return 10.0
 
 def _escape_drawtext(text: str, max_len: int = 70) -> str:
-    t = text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "").replace('"', "")
+    # FFmpeg drawtext necesita escapar : \ ' además de , ; [ ] que rompen filtros
+    t = (
+        text.replace("\\", "\\\\")
+        .replace(":", "\\:")
+        .replace("'", "")
+        .replace('"', "")
+        .replace(",", "\\,")
+        .replace(";", "\\;")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+    )
     return re.sub(r"[\n\r\t]+", " ", t).strip()[:max_len]
 
 def _split_title_lines(title: str, max_chars: int = 28) -> list[str]:
@@ -73,7 +83,17 @@ def create_simple_video(audio_path: Path, title: str = "ContentGremlin Video", o
 def burn_subtitles(video_path: Path, srt_path: Path, output_name: Optional[str] = None) -> Path:
     safe = "".join(c for c in (output_name or video_path.stem + "_subs") if c.isalnum() or c in "-_")[:50]
     out = VIDEO_DIR / f"{safe}.mp4"
-    srt_escaped = str(srt_path).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+    # Escapar path para filtro subtitles (evita rotura con ' : [ ] , ;)
+    srt_escaped = (
+        str(srt_path)
+        .replace("\\", "/")
+        .replace(":", "\\:")
+        .replace("'", "\\'")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace(",", "\\,")
+        .replace(";", "\\;")
+    )
     cmd = ["ffmpeg", "-y", "-i", str(video_path), "-vf", f"subtitles='{srt_escaped}':force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=40'", "-c:a", "copy", "-movflags", "+faststart", str(out)]
     _run_ffmpeg(cmd)
     return out

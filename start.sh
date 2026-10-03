@@ -32,9 +32,10 @@ fi
 
 GREMLIN_PORT="${GREMLIN_PORT:-8000}"
 EDITOR_PORT="${EDITOR_PORT:-3000}"
+export PORT="$GREMLIN_PORT"
 
 echo "Arrancando Gremlin API en :$GREMLIN_PORT ..."
-python main.py &
+PORT="$GREMLIN_PORT" python main.py &
 PID_G=$!
 
 echo "Arrancando Editor en :$EDITOR_PORT ..."
