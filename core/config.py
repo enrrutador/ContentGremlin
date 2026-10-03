@@ -5,8 +5,7 @@ Central configuration loaded from environment + user profile.
 
 from pathlib import Path
 from typing import Optional, Literal
-from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -16,6 +15,8 @@ PROFILE_FILE = DATA_DIR / "user_profile.json"
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
     # Application
     host: str = "0.0.0.0"
     port: int = 8000
@@ -45,10 +46,14 @@ class Settings(BaseSettings):
     elevenlabs_api_key: Optional[str] = None
     openai_tts_voice: str = "alloy"
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
+    # Cinematic mode (optional)
+    image_provider: str = "openai"
+    openai_image_model: str = "dall-e-3"
+    video_provider: str = "none"
+    video_api_url: Optional[str] = None
+    video_api_key: Optional[str] = None
+    cinematic_max_scenes: int = 12
+    cinematic_default_style: str = "cinematic, shallow depth of field, natural light, 35mm film still"
 
 
 settings = Settings()
