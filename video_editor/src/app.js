@@ -43,11 +43,14 @@ await Promise.all(
 );
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ["http://127.0.0.1:8000", "http://localhost:8000", "http://127.0.0.1:3000", "http://localhost:3000"],
+}));
 app.use(express.json({ limit: "20mb" }));
 app.use("/media", express.static(MEDIA_DIR));
 app.use("/renders", express.static(RENDER_DIR));
 
+const ALLOWED_UPLOAD_EXTS = new Set([".mp4", ".mov", ".mkv", ".webm", ".avi", ".mp3", ".wav", ".m4a", ".ogg", ".jpg", ".jpeg", ".png", ".webp"]);
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_r, _f, cb) => cb(null, MEDIA_DIR),
@@ -55,6 +58,11 @@ const upload = multer({
       cb(null, `${randomUUID().slice(0, 8)}${extname(file.originalname) || ".bin"}`),
   }),
   limits: { fileSize: 2 * 1024 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = extname(file.originalname || "").toLowerCase();
+    if (!ext || ALLOWED_UPLOAD_EXTS.has(ext)) return cb(null, true);
+    cb(new Error(`Extensión no permitida: ${ext}`));
+  },
 });
 
 const ctx = {

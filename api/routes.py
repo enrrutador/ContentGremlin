@@ -155,6 +155,8 @@ class VoiceRequest(BaseModel):
     text: str
     title: Optional[str] = "narration"
     voice: Optional[str] = None
+    # Alias pedido por skills/voice.md (filename). Si viene, tiene prioridad.
+    filename: Optional[str] = None
 
 
 class VideoRequest(BaseModel):
@@ -177,8 +179,9 @@ class FullPipelineRequest(BaseModel):
 async def api_generate_voice(req: VoiceRequest):
     try:
         tts = TTSProvider()
-        path = await tts.generate(text=req.text, filename=req.title, voice=req.voice)
-        entry = add_item(item_type="audio", title=req.title, content=str(path), meta={"chars": len(req.text)})
+        name = req.filename or req.title or "narration"
+        path = await tts.generate(text=req.text, filename=name, voice=req.voice)
+        entry = add_item(item_type="audio", title=name, content=str(path), meta={"chars": len(req.text)})
         return {"success": True, "audio_path": str(path), "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("voice")}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -188,7 +191,10 @@ async def api_generate_voice(req: VoiceRequest):
 async def api_create_video(req: VideoRequest):
     try:
         from modules.subtitles import generate_subtitles as _gen_subs
+        from core.storage import has_allowed_ext, AUDIO_EXTS
 
+        if not has_allowed_ext(req.audio_path, AUDIO_EXTS):
+            raise HTTPException(status_code=400, detail="audio_path debe ser audio (.mp3/.wav/.m4a/.ogg/.flac)")
         result = create_video_from_script_and_audio(
             script=req.script or "", audio_path=Path(req.audio_path),
             title=req.title, output_name=req.output_name, template=req.template,
@@ -203,6 +209,8 @@ async def api_create_video(req: VideoRequest):
             result["subtitles_burned"] = True
         entry = add_item(item_type="video", title=req.title, content=result["video_path"], meta=result)
         return {"success": True, **result, "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("video")}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -281,9 +289,16 @@ class SuperPipelineRequest(BaseModel):
 @router.post("/generate_subtitles")
 async def api_generate_subtitles(req: SubtitlesRequest):
     try:
+        if req.audio_path:
+            from core.storage import has_allowed_ext, AUDIO_EXTS
+
+            if not has_allowed_ext(req.audio_path, AUDIO_EXTS):
+                raise HTTPException(status_code=400, detail="audio_path debe ser audio (.mp3/.wav/.m4a/.ogg/.flac)")
         result = generate_subtitles(req.script, req.title, audio_path=req.audio_path)
         entry = add_item(item_type="subtitles", title=req.title, content=result)
         return {"success": True, **result, "library_id": entry["id"]}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -311,6 +326,12 @@ async def api_generate_thumbnail(req: ThumbnailRequest):
 @router.post("/upload_video")
 async def api_upload_video(req: UploadRequest):
     try:
+        from core.storage import has_allowed_ext, VIDEO_EXTS, IMAGE_EXTS
+
+        if not has_allowed_ext(req.video_path, VIDEO_EXTS):
+            raise HTTPException(status_code=400, detail="video_path debe ser video (.mp4/.mov/.mkv/.webm/.avi)")
+        if req.thumbnail_path and not has_allowed_ext(req.thumbnail_path, IMAGE_EXTS):
+            raise HTTPException(status_code=400, detail="thumbnail_path debe ser imagen (.jpg/.png/.webp)")
         result = upload_video(
             video_path=req.video_path, title=req.title, description=req.description,
             tags=req.tags, privacy=req.privacy, thumbnail_path=req.thumbnail_path,
@@ -318,6 +339,8 @@ async def api_upload_video(req: UploadRequest):
         )
         add_item(item_type="upload", title=req.title, content=result)
         return result
+    except HTTPException:
+        raise
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
@@ -362,7 +385,10 @@ async def _run_super_pipeline(req: SuperPipelineRequest) -> dict:
                 auto_assemble=True,
             )
             out["editor_project_id"] = ed.get("projectId") or ed.get("project_id")
-            out["editor_url"] = ed.get("editor_url")
+            url = ed.get("editor_url")
+            if url and "?project=" in url and "?projectId=" not in url:
+                url = url.replace("?project=", "?projectId=")
+            out["editor_url"] = url
         except Exception as e:
             out["editor_error"] = str(e)[:500]
     return out
@@ -449,6 +475,14 @@ class OpenInEditorRequest(BaseModel):
 async def api_open_in_editor(req: OpenInEditorRequest):
     try:
         from modules.editor_bridge import send_to_editor
+        from core.storage import has_allowed_ext, VIDEO_EXTS, AUDIO_EXTS, IMAGE_EXTS
+
+        allowed = VIDEO_EXTS | AUDIO_EXTS | IMAGE_EXTS
+        if req.video_path and not has_allowed_ext(req.video_path, allowed):
+            raise HTTPException(status_code=400, detail="video_path debe ser media válida")
+        for p in req.media_paths or []:
+            if not has_allowed_ext(p, allowed):
+                raise HTTPException(status_code=400, detail=f"media_path inválido: {p}")
 
         result = await send_to_editor(
             video_path=req.video_path,
@@ -458,7 +492,19 @@ async def api_open_in_editor(req: OpenInEditorRequest):
             crossfade=req.crossfade,
         )
         add_item(item_type="editor_link", title=req.name, content=result)
-        return {"success": True, **result}
+        # Normaliza contrato skills/editor.md (editor_project_id + ?projectId=)
+        pid = result.get("projectId") or result.get("project_id")
+        url = result.get("editor_url", "")
+        if url and "?project=" in url and "?projectId=" not in url:
+            url = url.replace("?project=", "?projectId=")
+        return {
+            "success": True,
+            **result,
+            "editor_project_id": pid,
+            "editor_url": url,
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Editor no disponible: {e}")
 

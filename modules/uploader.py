@@ -54,6 +54,10 @@ def _get_youtube_service():
             creds = flow.run_local_server(port=0)
         token_path.parent.mkdir(parents=True, exist_ok=True)
         token_path.write_text(creds.to_json(), encoding="utf-8")
+        try:
+            token_path.chmod(0o600)
+        except Exception:
+            pass
 
     return build("youtube", "v3", credentials=creds)
 

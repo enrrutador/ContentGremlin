@@ -215,7 +215,7 @@ export function registerAgent(app, ctx) {
       name: proj.name,
       media: proj.media.length,
       clips: proj.timeline.tracks[0]?.clips?.length || 0,
-      editor_url: `http://127.0.0.1:3000/?project=${proj.id}`,
+      editor_url: `http://127.0.0.1:3000/?projectId=${proj.id}`,
     });
   });
 

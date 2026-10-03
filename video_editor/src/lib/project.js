@@ -5,6 +5,10 @@ import { PROJECTS_DIR } from "../config.js";
 
 export const db = { projects: new Map(), renders: new Map() };
 
+export function isSafeId(id) {
+  return typeof id === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(id);
+}
+
 export function emptyProject(name = "Untitled") {
   return {
     id: randomUUID(),
@@ -24,6 +28,7 @@ export function emptyProject(name = "Untitled") {
 }
 
 export async function readProject(id) {
+  if (!isSafeId(id)) return null;
   if (db.projects.has(id)) return structuredClone(db.projects.get(id));
   try {
     const proj = JSON.parse(await fs.readFile(join(PROJECTS_DIR, `${id}.json`), "utf-8"));
@@ -35,6 +40,7 @@ export async function readProject(id) {
 }
 
 export async function saveProject(proj) {
+  if (!proj || !isSafeId(proj.id)) throw new Error("Project id inválido");
   proj.updatedAt = new Date().toISOString();
   db.projects.set(proj.id, proj);
   await fs.writeFile(join(PROJECTS_DIR, `${proj.id}.json`), JSON.stringify(proj, null, 2));

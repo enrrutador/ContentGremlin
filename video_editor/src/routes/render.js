@@ -8,6 +8,13 @@ export function registerRender(app, ctx) {
     const { projectId, width, height, outputPath } = req.body || {};
     const proj = await readProject(projectId);
     if (!proj) return res.status(404).json({ error: "Project not found" });
+    // outputPath arbitrario → confina a RENDER_DIR/basename para evitar escritura fuera
+    let safeOutput = undefined;
+    if (outputPath) {
+      const base = basename(String(outputPath)).replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80) || "out.mp4";
+      const { join } = ctx;
+      safeOutput = join(RENDER_DIR, base.endsWith(".mp4") ? base : `${base}.mp4`);
+    }
     const jobId = randomUUID();
     const q = { status: "queued", projectId, jobId, updatedAt: new Date().toISOString() };
     db.renders.set(jobId, q);
@@ -21,7 +28,7 @@ export function registerRender(app, ctx) {
           jobId,
           width: width || 1280,
           height: height || 720,
-          outputPath,
+          outputPath: safeOutput,
           useHwAccel: !!(req.body && req.body.useHwAccel),
           RENDER_DIR,
           onProgress: async (p) => {

@@ -26,6 +26,9 @@ export function registerProjects(app, ctx) {
     res.json(proj);
   });
   app.delete("/api/projects/:id", async (req, res) => {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(req.params.id || "")) {
+      return res.status(400).json({ error: "Project id inválido" });
+    }
     db.projects.delete(req.params.id);
     try { await fs.unlink(join(PROJECTS_DIR, `${req.params.id}.json`)); } catch {}
     res.json({ ok: true });
