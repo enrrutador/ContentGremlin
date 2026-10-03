@@ -57,6 +57,8 @@ def _isolate(monkeypatch, tmp_path):
     monkeypatch.setattr(routes, "is_youtube_configured", lambda: False)
     monkeypatch.setattr(routes, "generate_metadata", _fake_metadata)
     monkeypatch.setattr(routes, "create_thumbnail", lambda *a, **kwargs: Path("/tmp/t.jpg"))
+    # Aisla jobs a tmp para no contaminar data/jobs.json real
+    monkeypatch.setattr(jobs, "JOBS_FILE", tmp_path / "jobs.json")
     yield
     jobs._jobs.clear()
 

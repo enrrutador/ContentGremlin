@@ -13,6 +13,21 @@ class LLMProvider:
         profile = load_user_profile()
         self.preferred = profile.get("llm_provider", "openai")
 
+    def is_configured(self) -> bool:
+        """True si hay backend usable (key presente u ollama local)."""
+        p = self.preferred
+        if p == "openai":
+            return bool(settings.openai_api_key)
+        if p == "anthropic":
+            return bool(settings.anthropic_api_key)
+        if p == "xai":
+            return bool(settings.xai_api_key)
+        if p == "ollama":
+            return True  # se intentará; si el daemon no corre fallará con error de conexión claro
+        if p == "openrouter":
+            return bool(settings.openrouter_api_key)
+        return bool(settings.openai_api_key or settings.anthropic_api_key or settings.xai_api_key)
+
     async def generate(self, prompt: str, system: Optional[str] = None, temperature: float = 0.7) -> str:
         provider = self.preferred
 

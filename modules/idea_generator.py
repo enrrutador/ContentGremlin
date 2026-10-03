@@ -27,6 +27,11 @@ Títulos de referencia (prohibido imitar):
 {chr(10).join(f'- {t}' for t in top_titles[:10])}
 JSON: {{"ideas": [{{"title": "...", "angle": "...", "hook": "...", "why_it_works": "...", "estimated_minutes": 8}}]}}"""
     llm = LLMProvider()
+    if not getattr(llm, "is_configured", lambda: True)():
+        raise RuntimeError(
+            "LLM no configurado. Agrega OPENAI_API_KEY (o ANTHROPIC_API_KEY/XAI_API_KEY) "
+            "en .env o cambia llm_provider a ollama con un modelo local corriendo."
+        )
     raw = await llm.generate(prompt, system=SYSTEM_PROMPT, temperature=0.85)
     ideas = []
     try:
@@ -42,4 +47,9 @@ JSON: {{"ideas": [{{"title": "...", "angle": "...", "hook": "...", "why_it_works
             cleaned.append(idea)
         except SafetyError:
             continue
+    if not cleaned:
+        raise RuntimeError(
+            "No se pudieron generar ideas originales (LLM devolvió vacío o todo fue filtrado "
+            "por originalidad). Revisa tu LLM en .env o proba con otro nicho/conteo menor."
+        )
     return cleaned[:count]

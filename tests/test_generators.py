@@ -40,8 +40,11 @@ def test_generate_ideas_filters_non_original(monkeypatch):
 
 
 def test_generate_ideas_handles_invalid_json(monkeypatch):
+    import pytest
+
     monkeypatch.setattr(idea_generator, "LLMProvider", lambda: FakeLLM(["no json here"]))
-    assert asyncio.run(idea_generator.generate_ideas({"top_titles": []})) == []
+    with pytest.raises(RuntimeError, match="No se pudieron generar ideas"):
+        asyncio.run(idea_generator.generate_ideas({"top_titles": []}))
 
 
 def test_write_script_strips_code_fences(monkeypatch):

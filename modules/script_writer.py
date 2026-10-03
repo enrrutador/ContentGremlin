@@ -71,8 +71,18 @@ Exigencias extra:
 """
 
     llm = LLMProvider()
+    if not getattr(llm, "is_configured", lambda: True)():
+        raise RuntimeError(
+            "LLM no configurado. Agrega OPENAI_API_KEY (o ANTHROPIC_API_KEY/XAI_API_KEY) "
+            "en .env o cambia llm_provider a ollama con un modelo local corriendo."
+        )
     script = await llm.generate(prompt, system=SYSTEM_PROMPT, temperature=0.72)
     script = (script or "").strip()
+    if script.startswith("[LLM not configured]"):
+        raise RuntimeError(
+            "LLM no configurado. Agrega OPENAI_API_KEY (o ANTHROPIC_API_KEY/XAI_API_KEY) "
+            "en .env o cambia llm_provider a ollama con un modelo local corriendo."
+        )
 
     if script.startswith("```"):
         script = script.strip("`")
