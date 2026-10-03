@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.1"
 
     openrouter_api_key: Optional[str] = None
+    openrouter_model: str = "qwen/qwen3.8-27b:free"
 
     # YouTube (optional)
     youtube_client_secrets_file: str = "credentials/client_secrets.json"

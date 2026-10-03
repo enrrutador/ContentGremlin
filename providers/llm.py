@@ -37,6 +37,8 @@ class LLMProvider:
             return await self._anthropic(prompt, system, temperature)
         elif provider == "xai" and settings.xai_api_key:
             return await self._xai(prompt, system, temperature)
+        elif provider == "openrouter" and settings.openrouter_api_key:
+            return await self._openrouter(prompt, system, temperature)
         elif provider == "ollama":
             return await self._ollama(prompt, system, temperature)
         else:
@@ -115,6 +117,33 @@ class LLMProvider:
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
                 "https://api.x.ai/v1/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
+
+    async def _openrouter(self, prompt: str, system: Optional[str], temperature: float) -> str:
+        """OpenRouter (API compatible OpenAI). Modelo vía settings.openrouter_model."""
+        headers = {
+            "Authorization": f"Bearer {settings.openrouter_api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:8000",
+            "X-Title": "ContentGremlin-test",
+        }
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        payload = {
+            "model": settings.openrouter_model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
                 headers=headers,
                 json=payload,
             )
