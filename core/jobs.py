@@ -87,7 +87,9 @@ def create_job(kind: str) -> dict[str, Any]:
 
 def _execute_job(job_id: str, fn: Callable[[], Any]) -> dict[str, Any]:
     """Run fn synchronously, recording the outcome on the job. Never raises."""
-    job = _jobs[job_id]
+    job = _jobs.get(job_id)
+    if job is None:
+        return {"id": job_id, "status": "failed", "error": "job pruned before execution"}
     job["status"] = "running"
     job["updated_at"] = _now()
     _persist()

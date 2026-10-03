@@ -31,7 +31,11 @@ export function registerAgent(app, ctx) {
 
   app.get("/api/plugins", async (_req, res) => {
     const catalog = await loadCatalog();
-    res.json(catalog);
+    const implemented = catalog.implemented || [];
+    res.json({
+      ...catalog,
+      plugins: implemented.map((id) => ({ id })),
+    });
   });
 
   app.get("/api/agent/effects", async (_req, res) => {
@@ -102,8 +106,8 @@ export function registerAgent(app, ctx) {
     if (!proj) return res.status(404).json({ error: "Project not found" });
     const media = (proj.media || []).find((m) => m.id === mediaId);
     if (!media) return res.status(404).json({ error: "Media no encontrada" });
-    // MVP: devuelve la misma media como proxy
-    res.json({ ok: true, proxy: media });
+    // MVP: proxy = misma media; proxyUrl para la UI (null si es path externo no servido)
+    res.json({ ok: true, proxy: media, proxyUrl: media.url || null });
   });
 
   // Ensamblado rápido: mediaIds en orden → clips en v1 + render opcional
@@ -154,14 +158,38 @@ export function registerAgent(app, ctx) {
     }
     await saveProject(proj);
     if (!render) return res.json({ ok: true, projectId, clips: used, render: false });
+    // Render sync + job registrado para que el playbook pueda hacer poll GET /api/render/:jobId
+    const { jobStore, db } = ctx;
+    const jobId = randomUUID();
+    const queued = { status: "queued", projectId, jobId, updatedAt: new Date().toISOString() };
+    db.renders.set(jobId, queued);
+    try { await jobStore.save(queued); } catch {}
     try {
+      const running = { status: "running", projectId, jobId, updatedAt: new Date().toISOString() };
+      db.renders.set(jobId, running);
+      try { await jobStore.save(running); } catch {}
       const result = await renderTimelineSafe(proj, {
         width, height, useHwAccel, RENDER_DIR,
-        jobId: randomUUID().slice(0, 8),
+        jobId,
       });
-      return res.json({ ok: true, projectId, clips: used, render: true, ...result });
+      const done = {
+        status: "done", projectId, jobId,
+        outputPath: result.outputPath, url: result.url,
+        segments: result.segments, percent: 100,
+        updatedAt: new Date().toISOString(),
+      };
+      db.renders.set(jobId, done);
+      try { await jobStore.save(done); } catch {}
+      return res.json({
+        ok: true, projectId, clips: used, render: true,
+        jobId, poll: `/api/render/${jobId}`,
+        ...result,
+      });
     } catch (e) {
-      return res.status(500).json({ error: "Render falló", detail: String(e.message || e).slice(0, 800) });
+      const err = { status: "error", projectId, jobId, error: String(e.message || e).slice(0, 800), updatedAt: new Date().toISOString() };
+      db.renders.set(jobId, err);
+      try { await jobStore.save(err); } catch {}
+      return res.status(500).json({ error: "Render falló", detail: String(e.message || e).slice(0, 800), jobId, poll: `/api/render/${jobId}` });
     }
   });
 
@@ -224,5 +252,62 @@ export function registerAgent(app, ctx) {
     const proj = await readProject(req.params.id);
     if (!proj) return res.status(404).json({ error: "Project not found" });
     res.json(projectToOTIO(proj));
+  });
+
+  // OTIO import (la UI lo llama en btnOtioIn). Acepta OTIO Timeline.1 o {tracks}.
+  app.post("/api/projects/:id/otio/import", async (req, res) => {
+    const proj = await readProject(req.params.id);
+    if (!proj) return res.status(404).json({ error: "Project not found" });
+    const body = req.body || {};
+    try {
+      const stack = body.tracks?.children || body.timeline?.tracks?.children || [];
+      if (!Array.isArray(stack) || !stack.length) {
+        return res.status(400).json({ error: "OTIO sin tracks", hint: "Exporta con GET .../otio para ver el formato" });
+      }
+      const rateOf = (rt) => (rt && rt.rate) || 30;
+      const toSec = (rt) => (rt ? (rt.value || 0) / rateOf(rt) : 0);
+      const newTracks = [];
+      for (const tr of stack) {
+        const tid = String(tr.name || `v${newTracks.length + 1}`).slice(0, 16);
+        const type = tr.kind === "Audio" ? "audio" : "video";
+        const clips = [];
+        let t = 0;
+        for (const c of tr.children || []) {
+          if (!c.source_range) continue;
+          const dur = toSec(c.source_range.duration);
+          const inP = toSec(c.source_range.start_time);
+          const meta = c.metadata || {};
+          const mediaRef = c.media_reference || {};
+          clips.push({
+            id: randomUUID().slice(0, 8),
+            mediaId: mediaRef.metadata?.mediaId || null,
+            filename: c.name || "clip",
+            sourcePath: (mediaRef.target_url || "").replace(/^file:\/\//, "") || null,
+            start: meta.gremlin_start_seconds ?? t,
+            duration: dur || 5,
+            inPoint: inP,
+            outPoint: inP + (dur || 5),
+            effects: mediaRef.metadata?.effects || [],
+            keyframes: [],
+          });
+          t += dur || 5;
+        }
+        newTracks.push({ id: tid, type, clips });
+      }
+      if (!newTracks.length) return res.status(400).json({ error: "OTIO sin clips importables" });
+      proj.timeline.tracks = newTracks;
+      proj.timeline.transitions = body.metadata?.gremlin_transitions?.map((tr) => ({
+        id: tr.gremlin_id || randomUUID().slice(0, 8),
+        fromClipId: tr.metadata?.fromClipId,
+        toClipId: tr.metadata?.toClipId,
+        transitionId: tr.name || "transition.crossfade",
+        duration: toSec(tr.out_offset) || 1,
+      })) || [];
+      await saveProject(proj);
+      const total = newTracks.flatMap((t) => t.clips).length;
+      return res.json({ ok: true, projectId: proj.id, tracks: newTracks.length, clips: total });
+    } catch (e) {
+      return res.status(400).json({ error: "OTIO inválido", detail: String(e.message || e).slice(0, 300) });
+    }
   });
 }

@@ -44,7 +44,7 @@ export function registerPreview(app, ctx) {
   });
 
   app.post("/api/preview/montage", async (req, res) => {
-    const { projectId } = req.body || {};
+    const { projectId, width = 640, height = 360 } = req.body || {};
     const proj = await readProject(projectId);
     if (!proj) return res.status(404).json({ error: "Project not found" });
     const clips = (proj.timeline?.tracks || []).flatMap((t) => t.clips || []);
@@ -55,12 +55,41 @@ export function registerPreview(app, ctx) {
     if (first?.path) {
       try { probe = await probeMedia(first.path); } catch {}
     }
-    res.json({
-      projectId: proj.id,
-      duration,
-      clips: clips.length,
-      probe,
-      hint: "Usa GET /api/preview/frame?projectId=&t= para thumbnail",
-    });
+    // Render preview real para que la UI pueda mostrarlo (j.url)
+    try {
+      const { renderTimelineSafe } = ctx;
+      const { join, basename } = ctx;
+      const { PREVIEW_DIR } = ctx;
+      const { promises: fsp } = await import("fs");
+      await fsp.mkdir(PREVIEW_DIR, { recursive: true });
+      const outName = `montage_${proj.id.slice(0, 8)}.mp4`;
+      const result = await renderTimelineSafe(proj, {
+        width: Number(width) || 640,
+        height: Number(height) || 360,
+        outputPath: join(PREVIEW_DIR, outName),
+        RENDER_DIR: PREVIEW_DIR,
+      });
+      const url = `/renders/preview/${basename(result.outputPath)}`;
+      return res.json({
+        projectId: proj.id,
+        duration,
+        clips: clips.length,
+        probe,
+        url,
+        outputPath: result.outputPath,
+        hint: "Preview listo",
+      });
+    } catch (e) {
+      // Fallback: al menos frame URL si el render falla
+      return res.json({
+        projectId: proj.id,
+        duration,
+        clips: clips.length,
+        probe,
+        url: `/api/preview/frame?projectId=${proj.id}&t=1`,
+        error: String(e.message || e).slice(0, 300),
+        hint: "Render preview falló, usa frame",
+      });
+    }
   });
 }

@@ -23,7 +23,23 @@ def create_thumbnail(
     safe = "".join(c for c in (output_name or title) if c.isalnum() or c in "-_")[:40] or "thumb"
     out = THUMB_DIR / f"{safe}.jpg"
 
-    text = title.replace(":", "\\:").replace("'", "").replace('"', "")[:60]
+    # Mismo escape que video_creator._escape_drawtext (evita rotura con ,;[]\)
+    import re
+
+    def _esc(t: str) -> str:
+        t = (
+            t.replace("\\", "\\\\")
+            .replace(":", "\\:")
+            .replace("'", "")
+            .replace('"', "")
+            .replace(",", "\\,")
+            .replace(";", "\\;")
+            .replace("[", "\\[")
+            .replace("]", "\\]")
+        )
+        return re.sub(r"[\n\r\t]+", " ", t).strip()[:60]
+
+    text = _esc(title)
     words = text.split()
     line1, line2 = "", ""
     for w in words:

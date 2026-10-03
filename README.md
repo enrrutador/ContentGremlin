@@ -39,6 +39,9 @@ cp .env.example .env
 | http://127.0.0.1:8000/docs | OpenAPI |
 | http://127.0.0.1:3000 | Editor |
 
+Puertos por env: `GREMLIN_PORT` (default 8000) y `EDITOR_PORT` (default 3000).
+`HOST`/`PORT` en `.env` controlan la API; `PORT` en `video_editor` controla el editor.
+
 Requisitos: Python 3.10+, Node 18+, FFmpeg.
 
 ---
