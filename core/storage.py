@@ -19,6 +19,12 @@ _KINDS = {
     "cinematic_clips": ("cinematic", "clips"),
     "cinematic_scenes": ("cinematic", "scenes"),
     "cinematic_out": ("cinematic", "out"),
+    "broll": ("broll",),
+    "broll_cache": ("broll", "cache"),
+    "music": ("music",),
+    "production": ("production",),
+    "production_work": ("production", "work"),
+    "qa": ("qa",),
 }
 
 
@@ -39,13 +45,10 @@ def known_kinds() -> list[str]:
     return sorted(_KINDS)
 
 
-# Allowlist de extensiones para inputs que llegan por API.
-# Mitiga exfiltración (ej: subir /etc/passwd a YouTube) sin romper
-# paths de tests/mocks (no exige existencia, solo extensión).
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".avi"}
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".mp4"}
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
-SUBTITLE_EXTS = {".srt", ".vtt"}
+SUBTITLE_EXTS = {".srt", ".vtt", ".ass"}
 
 
 def has_allowed_ext(path_str: str | None, allowed: set[str]) -> bool:

@@ -26,6 +26,14 @@ from pathlib import Path
 
 router = APIRouter()
 
+# Production engine (publish-ready): /produce /qa /production /broll /music
+try:
+    from api.production_routes import router as production_router
+
+    router.include_router(production_router)
+except Exception:  # pragma: no cover - production module optional
+    pass
+
 
 class ModeRequest(BaseModel):
     mode: Literal["supervised", "autonomous"]
