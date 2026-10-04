@@ -1,27 +1,75 @@
-"""Image generation for cinematic mode."""
+"""Image generation for cinematic mode.
+
+Providers (IMAGE_PROVIDER):
+  pollinations - gratis, sin key (default). https://pollinations.ai
+  openai       - DALL-E, pago (OPENAI_API_KEY + OPENAI_IMAGE_MODEL).
+  none         - deshabilitado.
+"""
 from __future__ import annotations
 from pathlib import Path
+from urllib.parse import quote
 import httpx
 from core.config import settings, DATA_DIR
 from core.storage import get_dir
 
 IMAGE_DIR = get_dir("cinematic_images")
 
+_MAX_IMAGE_BYTES = 25 * 1024 * 1024
+
 class ImageProvider:
     def __init__(self):
-        self.provider = (settings.image_provider or "openai").lower()
+        self.provider = (settings.image_provider or "pollinations").lower()
 
     def is_configured(self) -> bool:
         if self.provider == "none":
             return False
-        return bool(settings.openai_api_key)
+        if self.provider == "pollinations":
+            return True  # gratis, sin key; requiere internet
+        if self.provider == "openai":
+            return bool(settings.openai_api_key)
+        return False
 
     async def generate(self, prompt: str, filename: str, size: str = "1792x1024") -> Path:
         if not self.is_configured():
-            raise RuntimeError("Image provider not configured. Set OPENAI_API_KEY and IMAGE_PROVIDER=openai.")
+            raise RuntimeError(
+                "Image provider no configurado. Opciones: "
+                "IMAGE_PROVIDER=pollinations (gratis, sin key) u "
+                "openai (OPENAI_API_KEY + OPENAI_IMAGE_MODEL)."
+            )
         safe = "".join(c for c in filename if c.isalnum() or c in "-_")[:40] or "scene"
         out = IMAGE_DIR / f"{safe}.png"
+        if self.provider == "pollinations":
+            return await self._pollinations(prompt, out, size)
         return await self._openai(prompt, out, size)
+
+    async def _pollinations(self, prompt: str, out: Path, size: str = "1792x1024") -> Path:
+        w, h = 1792, 1024
+        try:
+            pw, ph = size.lower().split("x")
+            w, h = max(256, min(2048, int(pw))), max(256, min(2048, int(ph)))
+        except Exception:
+            pass
+        import random
+
+        url = f"https://image.pollinations.ai/prompt/{quote(prompt[:1500])}"
+        params = {"width": w, "height": h, "seed": random.randint(0, 999999), "model": "flux", "nologo": "true"}
+        try:
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                total = 0
+                with open(out, "wb") as f:
+                    async with client.stream("GET", url, params=params) as r:
+                        r.raise_for_status()
+                        async for chunk in r.aiter_bytes(1024 * 256):
+                            total += len(chunk)
+                            if total > _MAX_IMAGE_BYTES:
+                                break
+                            f.write(chunk)
+            if total > _MAX_IMAGE_BYTES or out.stat().st_size < 5000:
+                out.unlink(missing_ok=True)
+                raise RuntimeError("Pollinations devolvió imagen vacía o gigante; reintentá.")
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"Pollinations error: {str(e)[:300]}")
+        return out
 
     async def _openai(self, prompt: str, out: Path, size: str) -> Path:
         if size not in ("1024x1024", "1792x1024", "1024x1792"):

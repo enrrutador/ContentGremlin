@@ -48,6 +48,7 @@ class FakeHttpClient:
 
 
 def test_image_provider_requires_api_key(monkeypatch):
+    monkeypatch.setattr(image_mod.settings, "image_provider", "openai")
     monkeypatch.setattr(image_mod.settings, "openai_api_key", None)
 
     provider = ImageProvider()
@@ -59,6 +60,7 @@ def test_image_provider_requires_api_key(monkeypatch):
 
 
 def test_image_generate_downloads_result_and_normalizes_size(monkeypatch, tmp_path):
+    monkeypatch.setattr(image_mod.settings, "image_provider", "openai")
     monkeypatch.setattr(image_mod.settings, "openai_api_key", "test-key")
     monkeypatch.setattr(image_mod.settings, "openai_image_model", "dall-e-3")
     monkeypatch.setattr(image_mod, "IMAGE_DIR", tmp_path)
@@ -72,6 +74,59 @@ def test_image_generate_downloads_result_and_normalizes_size(monkeypatch, tmp_pa
     body = client.posts[0]["json"]
     assert body["size"] == "1792x1024"
     assert body["prompt"] == "prompt"
+
+
+def test_image_pollinations_free_no_key_needed(monkeypatch, tmp_path):
+    monkeypatch.setattr(image_mod.settings, "image_provider", "pollinations")
+    monkeypatch.setattr(image_mod, "IMAGE_DIR", tmp_path)
+
+    seen = {}
+
+    class FakeStream:
+        def __init__(self, chunks):
+            self.chunks = chunks
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        def raise_for_status(self):
+            pass
+
+        async def aiter_bytes(self, n):
+            for c in self.chunks:
+                yield c
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        def stream(self, method, url, params=None):
+            seen["url"] = url
+            seen["params"] = params
+            return FakeStream([b"PNG" * 2000])
+
+    monkeypatch.setattr(image_mod.httpx, "AsyncClient", FakeClient)
+
+    provider = ImageProvider()
+    assert provider.is_configured() is True
+    out = asyncio.run(provider.generate("cocina al amanecer", "escena 1", size="raro"))
+    assert out.read_bytes() == b"PNG" * 2000
+    assert "pollinations" in seen["url"]
+    assert seen["params"]["width"] == 1792
+
+
+def test_image_unknown_provider_not_configured(monkeypatch):
+    monkeypatch.setattr(image_mod.settings, "image_provider", "midjourney")
+    assert ImageProvider().is_configured() is False
 
 
 def test_video_gen_defaults_to_none(monkeypatch):

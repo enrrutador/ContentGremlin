@@ -58,7 +58,7 @@ def _mux_audio(video: Path, audio: Path, out: Path) -> Path:
 async def create_cinematic_video(script: str, title: str, voice: Optional[str] = None, burn_subs: bool = False, style: Optional[str] = None) -> dict[str, Any]:
     image_p = ImageProvider()
     if not image_p.is_configured():
-        raise RuntimeError("Cinematic mode needs image provider. Set OPENAI_API_KEY and IMAGE_PROVIDER=openai.")
+        raise RuntimeError("Cinematic mode needs image provider. Usa IMAGE_PROVIDER=pollinations (gratis) u openai con OPENAI_API_KEY.")
     tts = TTSProvider()
     audio_path = await tts.generate(text=script, filename=title, voice=voice)
     audio_dur = _probe_duration(Path(audio_path))

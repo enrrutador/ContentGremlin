@@ -127,7 +127,8 @@ async def get_public_config():
 @router.post("/analyze_channel")
 async def api_analyze_channel(req: AnalyzeRequest):
     try:
-        report = analyze_channel(req.channel_url)
+        # yt-dlp bloquea hasta 120s: fuera del event-loop
+        report = await asyncio.to_thread(analyze_channel, req.channel_url)
         return {"success": True, "report": report, "requires_approval": ModeManager.requires_approval("analysis")}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -203,16 +204,17 @@ async def api_create_video(req: VideoRequest):
 
         if not has_allowed_ext(req.audio_path, AUDIO_EXTS):
             raise HTTPException(status_code=400, detail="audio_path debe ser audio (.mp3/.wav/.m4a/.ogg/.flac)")
-        result = create_video_from_script_and_audio(
+        result = await asyncio.to_thread(
+            create_video_from_script_and_audio,
             script=req.script or "", audio_path=Path(req.audio_path),
             title=req.title, output_name=req.output_name, template=req.template,
         )
         # burn opcional pedido por skills/video.md
         if req.burn_subtitles:
-            subs = _gen_subs(req.script or req.title, req.title)
+            subs = await asyncio.to_thread(_gen_subs, req.script or req.title, req.title)
             from modules.video_creator import burn_subtitles as _burn
 
-            burned = _burn(Path(result["video_path"]), Path(subs["srt_path"]))
+            burned = await asyncio.to_thread(_burn, Path(result["video_path"]), Path(subs["srt_path"]))
             result["video_path"] = str(burned)
             result["subtitles_burned"] = True
         entry = add_item(item_type="video", title=req.title, content=result["video_path"], meta=result)
@@ -228,7 +230,7 @@ async def api_full_pipeline(req: FullPipelineRequest):
     try:
         tts = TTSProvider()
         audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
-        result = create_video_from_script_and_audio(script=req.script, audio_path=audio_path, title=req.title, output_name=req.title)
+        result = await asyncio.to_thread(create_video_from_script_and_audio, script=req.script, audio_path=audio_path, title=req.title, output_name=req.title)
         entry = add_item(item_type="full_project", title=req.title, content={"script": req.script, "audio_path": str(audio_path), "video_path": result["video_path"]}, meta=result)
         return {"success": True, "audio_path": str(audio_path), "video_path": result["video_path"], "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("video")}
     except Exception as e:
@@ -302,7 +304,7 @@ async def api_generate_subtitles(req: SubtitlesRequest):
 
             if not has_allowed_ext(req.audio_path, AUDIO_EXTS):
                 raise HTTPException(status_code=400, detail="audio_path debe ser audio (.mp3/.wav/.m4a/.ogg/.flac)")
-        result = generate_subtitles(req.script, req.title, audio_path=req.audio_path)
+        result = await asyncio.to_thread(generate_subtitles, req.script, req.title, audio_path=req.audio_path)
         entry = add_item(item_type="subtitles", title=req.title, content=result)
         return {"success": True, **result, "library_id": entry["id"]}
     except HTTPException:
@@ -324,7 +326,7 @@ async def api_generate_metadata(req: MetadataRequest):
 @router.post("/generate_thumbnail")
 async def api_generate_thumbnail(req: ThumbnailRequest):
     try:
-        path = create_thumbnail(req.title, output_name=req.output_name)
+        path = await asyncio.to_thread(create_thumbnail, req.title, output_name=req.output_name)
         entry = add_item(item_type="thumbnail", title=req.title, content=str(path))
         return {"success": True, "thumbnail_path": str(path), "library_id": entry["id"]}
     except Exception as e:
@@ -340,7 +342,8 @@ async def api_upload_video(req: UploadRequest):
             raise HTTPException(status_code=400, detail="video_path debe ser video (.mp4/.mov/.mkv/.webm/.avi)")
         if req.thumbnail_path and not has_allowed_ext(req.thumbnail_path, IMAGE_EXTS):
             raise HTTPException(status_code=400, detail="thumbnail_path debe ser imagen (.jpg/.png/.webp)")
-        result = upload_video(
+        result = await asyncio.to_thread(
+            upload_video,
             video_path=req.video_path, title=req.title, description=req.description,
             tags=req.tags, privacy=req.privacy, thumbnail_path=req.thumbnail_path,
             explicit_approval=req.explicit_approval,
@@ -359,14 +362,15 @@ async def _run_super_pipeline(req: SuperPipelineRequest) -> dict:
     """Full production pipeline: TTS -> subtitles -> video -> metadata -> thumbnail."""
     tts = TTSProvider()
     audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
-    subs = generate_subtitles(req.script, req.title, audio_path=audio_path)
-    video_result = create_video_from_script_and_audio(
+    subs = await asyncio.to_thread(generate_subtitles, req.script, req.title, audio_path=audio_path)
+    video_result = await asyncio.to_thread(
+        create_video_from_script_and_audio,
         script=req.script, audio_path=audio_path, title=req.title, output_name=req.title,
         srt_path=Path(subs["srt_path"]), burn_subs=req.burn_subtitles,
         template=getattr(req, "template", "dark_minimal"),
     )
     meta = await generate_metadata(req.script, idea=req.idea)
-    thumb = create_thumbnail(meta.get("title") or req.title, output_name=req.title)
+    thumb = await asyncio.to_thread(create_thumbnail, meta.get("title") or req.title, output_name=req.title)
     entry = add_item(
         item_type="full_project", title=meta.get("title") or req.title,
         content={

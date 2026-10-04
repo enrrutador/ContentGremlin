@@ -14,7 +14,7 @@ def _patch_profile_path(monkeypatch, tmp_path):
 
 def test_settings_exposes_cinematic_fields():
     s = config.Settings(_env_file=None)
-    assert s.image_provider == "openai"
+    assert s.image_provider == "pollinations"
     assert s.openai_image_model
     assert s.video_provider == "none"
     assert s.video_api_url is None

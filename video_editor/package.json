@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "assemble": "node scripts/assemble-routes.mjs",
-    "prestart": "node scripts/assemble-routes.mjs && node scripts/ensure-app.mjs",
+    "prestart": "node scripts/assemble-routes.mjs && node scripts/ensure-app.mjs && node scripts/prune-old.mjs",
     "start": "node server.js",
     "dev": "node server.js"
   },

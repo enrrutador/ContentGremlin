@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.10+
 - Git
 - (Optional) FFmpeg for local video processing
 - API keys for the LLM provider you want to use

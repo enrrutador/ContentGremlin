@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     openai_tts_voice: str = "alloy"
     edge_tts_voice: str = "es-AR-TomasNeural"
 
-    image_provider: str = "openai"
+    image_provider: str = "pollinations"
     openai_image_model: str = "dall-e-3"
     video_provider: str = "none"
     video_api_url: Optional[str] = None

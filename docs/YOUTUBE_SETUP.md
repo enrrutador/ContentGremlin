@@ -13,7 +13,7 @@
 credentials/client_secrets.json
 ```
 
-(o la ruta de `YOUTUBE_CLIENT_SECRETS` en `.env`)
+(o la ruta de `YOUTUBE_CLIENT_SECRETS_FILE` en `.env`)
 
 ## 3. Primera auth
 

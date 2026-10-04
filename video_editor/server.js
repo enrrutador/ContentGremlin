@@ -12,6 +12,7 @@ const run = (script) => {
 
 run("assemble-routes.mjs");
 run("ensure-app.mjs");
+run("prune-old.mjs");
 
 const appPath = join(dir, "src", "app.js");
 if (!existsSync(appPath)) {

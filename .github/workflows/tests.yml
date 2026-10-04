@@ -24,4 +24,17 @@ jobs:
       - name: Run tests with coverage
         run: |
           python -m coverage run -m pytest -q
-          python -m coverage report --fail-under=60
+          python -m coverage report --fail-under=75
+
+  editor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Syntax check editor
+        working-directory: video_editor
+        run: |
+          for f in src/app.js src/config.js src/index.js src/lib/project.js src/lib/media.js src/lib/render.js src/routes/projects.js src/routes/media.js src/routes/timeline.js src/routes/preview.js src/routes/render.js src/routes/agent.js lib/otio.js lib/jobs.js server.js scripts/assemble-routes.mjs scripts/ensure-app.mjs scripts/prune-old.mjs; do node --check "$f" || exit 1; done
+          echo "editor syntax OK"
