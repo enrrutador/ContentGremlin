@@ -34,6 +34,9 @@ class TTSProvider:
 
         if self.preferred == "elevenlabs" and settings.elevenlabs_api_key:
             return await self._elevenlabs(text, out_path, voice)
+        elif self.preferred == "edge":
+            # Gratis, sin API key (voces Microsoft Edge)
+            return await self._edge(text, out_path, voice)
         else:
             return await self._openai(text, out_path, voice)
 
@@ -114,6 +117,28 @@ class TTSProvider:
             )
             resp.raise_for_status()
             return resp.content
+
+    async def _edge(self, text: str, out_path: Path, voice: Optional[str]) -> Path:
+        """Edge-TTS gratis (Microsoft, sin API key). Misma estrategia chunk+concat."""
+        try:
+            import edge_tts
+        except ImportError:
+            raise RuntimeError("edge-tts no instalado. Ejecuta: pip install edge-tts")
+        voice_id = voice or settings.edge_tts_voice or "es-AR-TomasNeural"
+        chunks = self._split_text(text, max_chars=4000)
+
+        if len(chunks) == 1:
+            await edge_tts.Communicate(chunks[0], voice_id).save(str(out_path))
+            return out_path
+
+        with tempfile.TemporaryDirectory(prefix="gremlin_tts_") as tmp:
+            parts = []
+            for i, chunk in enumerate(chunks):
+                part = Path(tmp) / f"part_{i:03d}.mp3"
+                await edge_tts.Communicate(chunk, voice_id).save(str(part))
+                parts.append(part)
+            self._concat_audio(parts, out_path)
+        return out_path
 
     def _concat_audio(self, parts: list[Path], out_path: Path) -> None:
         """Join chunked TTS output into a single MP3 (stream copy, no re-encode)."""

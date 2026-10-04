@@ -113,13 +113,14 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.1"
 
     openrouter_api_key: Optional[str] = None
-    openrouter_model: str = "qwen/qwen3.8-27b:free"
+    openrouter_model: str = "liquid/lfm-2.5-2.6b:free"
 
     youtube_client_secrets_file: str = "credentials/client_secrets.json"
     youtube_token_file: str = "credentials/token.json"
 
     elevenlabs_api_key: Optional[str] = None
     openai_tts_voice: str = "alloy"
+    edge_tts_voice: str = "es-AR-TomasNeural"
 
     image_provider: str = "openai"
     openai_image_model: str = "dall-e-3"
