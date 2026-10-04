@@ -37,21 +37,42 @@ def _cache_path(url: str, ext: str = ".mp4") -> Path:
     return CACHE_DIR / f"{h}{ext}"
 
 
+_MAX_DOWNLOAD_BYTES = 250 * 1024 * 1024
+
+
 async def _download(url: str, ext: str = ".mp4") -> Optional[Path]:
     dest = _cache_path(url, ext)
     if dest.exists() and dest.stat().st_size > 5000:
         return dest
     try:
         async with httpx.AsyncClient(timeout=90.0, follow_redirects=True) as client:
-            r = await client.get(url)
-            r.raise_for_status()
-            dest.write_bytes(r.content)
-        if dest.stat().st_size < 5000:
-            dest.unlink(missing_ok=True)
-            return None
+            # Pre-chequeo: rechaza archivos gigantes antes de descargar
+            try:
+                head = await client.head(url, timeout=20.0)
+                size = int(head.headers.get("content-length") or 0)
+                if size > _MAX_DOWNLOAD_BYTES:
+                    return None
+            except Exception:
+                pass
+            # Streaming con tope: nunca carga el video entero en RAM
+            total = 0
+            with open(dest, "wb") as f:
+                async with client.stream("GET", url) as r:
+                    r.raise_for_status()
+                    async for chunk in r.aiter_bytes(1024 * 256):
+                        total += len(chunk)
+                        if total > _MAX_DOWNLOAD_BYTES:
+                            break
+                        f.write(chunk)
+            if total > _MAX_DOWNLOAD_BYTES or dest.stat().st_size < 5000:
+                dest.unlink(missing_ok=True)
+                return None
         return dest
     except Exception:
-        dest.unlink(missing_ok=True)
+        try:
+            dest.unlink(missing_ok=True)
+        except Exception:
+            pass
         return None
 
 

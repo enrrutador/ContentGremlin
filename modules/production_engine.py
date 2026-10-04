@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
+import uuid
 from pathlib import Path
 from typing import Any, Optional
 
@@ -57,6 +59,25 @@ def _parse_resolution(res: str) -> tuple[int, int]:
         return int(w), int(h)
     except Exception:
         return 1920, 1080
+
+
+def _new_work_dir() -> Path:
+    """Work dir único por corrida + poda best-effort de dirs viejos (>24h)."""
+    try:
+        now = time.time()
+        for child in WORK_DIR.iterdir():
+            try:
+                if child.is_dir() and now - child.stat().st_mtime > 24 * 3600:
+                    import shutil
+
+                    shutil.rmtree(child, ignore_errors=True)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    work = WORK_DIR / f"job_{uuid.uuid4().hex[:12]}"
+    work.mkdir(parents=True, exist_ok=True)
+    return work
 
 
 def _trim_clip(src: Path, duration: float, out: Path, w: int, h: int, fps: int) -> Path:
@@ -250,8 +271,7 @@ async def _assemble_timeline(
     target_cut = _PACE_CUT.get(pace, 4.5)
     audio_dur = _probe_duration(audio_path) or sum(float(s.get("duration_seconds") or 5) for s in scenes)
 
-    work = WORK_DIR / f"job_{abs(hash(title)) % 10_000_000}"
-    work.mkdir(parents=True, exist_ok=True)
+    work = _new_work_dir()
 
     clips: list[Path] = []
     asset_by_idx = {a.get("scene_index"): a for a in assets}

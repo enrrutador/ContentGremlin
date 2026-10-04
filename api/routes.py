@@ -1,33 +1,549 @@
 """
 ContentGremlin - API Routes
-
-Production engine routes are always mounted.
-Legacy pipeline routes are loaded from api._routes_core when present.
-
-On this feature branch, if _routes_core is incomplete, restore with:
-  git checkout main -- api/routes.py
-  # then re-add: from api.production_routes import router as production_router
-  #              router.include_router(production_router)
-Or merge this branch and resolve routes.py by keeping main body + production include.
+Clean endpoints designed for both the web UI and external agents.
 """
-from fastapi import APIRouter
+
+from typing import Optional, Literal, Any
+import asyncio
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+from core import __version__
+from core.jobs import submit_job, get_job, list_jobs
+from core.mode_manager import ModeManager
+from core.config import load_user_profile, save_user_profile, settings
+from core.safety import safety_report, can_upload
+from modules.analyzer import analyze_channel
+from modules.idea_generator import generate_ideas
+from modules.script_writer import write_script
+from modules.library import add_item, list_items, get_item, delete_item
+from modules.video_creator import create_video_from_script_and_audio
+from modules.subtitles import generate_subtitles
+from modules.metadata import generate_metadata
+from modules.thumbnail import create_thumbnail
+from modules.uploader import upload_video, is_youtube_configured
+from providers.tts import TTSProvider
+from pathlib import Path
 
 router = APIRouter()
 
 # Production engine (publish-ready): /produce /qa /production /broll /music
-from api.production_routes import router as production_router
-
-router.include_router(production_router)
-
-# Legacy pipeline routes (analyze, ideas, script, super_pipeline, …)
 try:
-    from api._routes_core import router as core_router
+    from api.production_routes import router as production_router
 
-    router.include_router(core_router)
-except Exception as _exc:  # pragma: no cover - branch bootstrap
-    import warnings
+    router.include_router(production_router)
+except Exception:  # pragma: no cover - production module optional
+    pass
 
-    warnings.warn(
-        f"Legacy api._routes_core not loaded ({_exc}). "
-        "Production endpoints work; restore core routes from main if needed."
+
+class ModeRequest(BaseModel):
+    mode: Literal["supervised", "autonomous"]
+
+
+class AnalyzeRequest(BaseModel):
+    channel_url: str = Field(..., description="YouTube channel URL or handle")
+
+
+class ProfileUpdate(BaseModel):
+    niche: Optional[str] = None
+    tone: Optional[str] = None
+    language: Optional[str] = None
+    llm_provider: Optional[str] = None
+    autonomous_upload_allowed: Optional[bool] = None
+
+
+class GenerateIdeasRequest(BaseModel):
+    analysis_report: dict[str, Any]
+    count: int = 8
+    niche: Optional[str] = None
+
+
+class WriteScriptRequest(BaseModel):
+    idea: dict[str, Any]
+    language: Optional[str] = None
+
+
+@router.get("/status")
+async def get_status():
+    profile = load_user_profile()
+    return {
+        "status": "online",
+        "mode": ModeManager.current(),
+        "niche": profile.get("niche", ""),
+        "llm_provider": profile.get("llm_provider", "not set"),
+        "youtube_configured": is_youtube_configured(),
+        "safety": safety_report(),
+        "version": __version__,
+    }
+
+
+@router.post("/set_mode")
+async def set_mode(req: ModeRequest):
+    profile = ModeManager.set(req.mode)
+    return {"success": True, "mode": profile["mode"], "message": f"Mode changed to {profile['mode']}"}
+
+
+@router.get("/mode")
+async def get_mode():
+    return {"mode": ModeManager.current()}
+
+
+@router.get("/profile")
+async def get_profile():
+    return load_user_profile()
+
+
+@router.post("/profile")
+async def update_profile(update: ProfileUpdate):
+    profile = load_user_profile()
+    if update.niche is not None:
+        profile["niche"] = update.niche
+    if update.tone is not None:
+        profile.setdefault("style_preferences", {})["tone"] = update.tone
+    if update.language is not None:
+        profile.setdefault("style_preferences", {})["language"] = update.language
+    if update.llm_provider is not None:
+        profile["llm_provider"] = update.llm_provider
+    if update.autonomous_upload_allowed is not None:
+        profile["autonomous_upload_allowed"] = update.autonomous_upload_allowed
+    save_user_profile(profile)
+    return {"success": True, "profile": profile}
+
+
+@router.get("/config/public")
+async def get_public_config():
+    return {
+        "host": settings.host,
+        "port": settings.port,
+        "debug": settings.debug,
+        "default_mode": settings.default_mode,
+        "openai_configured": bool(settings.openai_api_key),
+        "anthropic_configured": bool(settings.anthropic_api_key),
+        "xai_configured": bool(settings.xai_api_key),
+        "ollama_base_url": settings.ollama_base_url,
+        "elevenlabs_configured": bool(settings.elevenlabs_api_key),
+    }
+
+
+@router.post("/analyze_channel")
+async def api_analyze_channel(req: AnalyzeRequest):
+    try:
+        report = analyze_channel(req.channel_url)
+        return {"success": True, "report": report, "requires_approval": ModeManager.requires_approval("analysis")}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/generate_ideas")
+async def api_generate_ideas(req: GenerateIdeasRequest):
+    try:
+        ideas = await generate_ideas(analysis_report=req.analysis_report, count=req.count, niche=req.niche)
+        for idea in ideas:
+            add_item(item_type="idea", title=idea.get("title", "Idea"), content=idea)
+        return {"success": True, "ideas": ideas, "count": len(ideas), "requires_approval": ModeManager.requires_approval("ideas")}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/write_script")
+async def api_write_script(req: WriteScriptRequest):
+    try:
+        script = await write_script(idea=req.idea, language=req.language)
+        entry = add_item(item_type="script", title=req.idea.get("title", "Script"), content=script, meta={"idea": req.idea})
+        return {"success": True, "script": script, "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("script")}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/safety")
+async def get_safety():
+    return safety_report()
+
+
+class VoiceRequest(BaseModel):
+    text: str
+    title: Optional[str] = "narration"
+    voice: Optional[str] = None
+    # Alias pedido por skills/voice.md (filename). Si viene, tiene prioridad.
+    filename: Optional[str] = None
+
+
+class VideoRequest(BaseModel):
+    audio_path: str
+    title: str
+    output_name: Optional[str] = None
+    # Compat con skills/video.md (opcionales, no rompen API existente)
+    script: Optional[str] = ""
+    burn_subtitles: bool = False
+    template: str = "dark_minimal"
+
+
+class FullPipelineRequest(BaseModel):
+    script: str
+    title: str
+    voice: Optional[str] = None
+
+
+@router.post("/generate_voice")
+async def api_generate_voice(req: VoiceRequest):
+    try:
+        tts = TTSProvider()
+        name = req.filename or req.title or "narration"
+        path = await tts.generate(text=req.text, filename=name, voice=req.voice)
+        entry = add_item(item_type="audio", title=name, content=str(path), meta={"chars": len(req.text)})
+        return {"success": True, "audio_path": str(path), "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("voice")}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/create_video")
+async def api_create_video(req: VideoRequest):
+    try:
+        from modules.subtitles import generate_subtitles as _gen_subs
+        from core.storage import has_allowed_ext, AUDIO_EXTS
+
+        if not has_allowed_ext(req.audio_path, AUDIO_EXTS):
+            raise HTTPException(status_code=400, detail="audio_path debe ser audio (.mp3/.wav/.m4a/.ogg/.flac)")
+        result = create_video_from_script_and_audio(
+            script=req.script or "", audio_path=Path(req.audio_path),
+            title=req.title, output_name=req.output_name, template=req.template,
+        )
+        # burn opcional pedido por skills/video.md
+        if req.burn_subtitles:
+            subs = _gen_subs(req.script or req.title, req.title)
+            from modules.video_creator import burn_subtitles as _burn
+
+            burned = _burn(Path(result["video_path"]), Path(subs["srt_path"]))
+            result["video_path"] = str(burned)
+            result["subtitles_burned"] = True
+        entry = add_item(item_type="video", title=req.title, content=result["video_path"], meta=result)
+        return {"success": True, **result, "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("video")}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/full_pipeline")
+async def api_full_pipeline(req: FullPipelineRequest):
+    try:
+        tts = TTSProvider()
+        audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
+        result = create_video_from_script_and_audio(script=req.script, audio_path=audio_path, title=req.title, output_name=req.title)
+        entry = add_item(item_type="full_project", title=req.title, content={"script": req.script, "audio_path": str(audio_path), "video_path": result["video_path"]}, meta=result)
+        return {"success": True, "audio_path": str(audio_path), "video_path": result["video_path"], "library_id": entry["id"], "requires_approval": ModeManager.requires_approval("video")}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/library")
+async def api_list_library(type: Optional[str] = None, limit: int = 50):
+    return {"items": list_items(item_type=type, limit=limit)}
+
+
+@router.get("/library/{item_id}")
+async def api_get_library_item(item_id: str):
+    item = get_item(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return item
+
+
+@router.delete("/library/{item_id}")
+async def api_delete_library_item(item_id: str):
+    ok = delete_item(item_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"success": True}
+
+
+class SubtitlesRequest(BaseModel):
+    script: str
+    title: Optional[str] = "subtitles"
+    audio_path: Optional[str] = None
+
+
+class MetadataRequest(BaseModel):
+    script: str
+    idea: Optional[dict[str, Any]] = None
+    language: Optional[str] = None
+
+
+class ThumbnailRequest(BaseModel):
+    title: str
+    output_name: Optional[str] = None
+
+
+class UploadRequest(BaseModel):
+    video_path: str
+    title: str
+    description: str = ""
+    tags: Optional[list[str]] = None
+    privacy: str = "private"
+    thumbnail_path: Optional[str] = None
+    explicit_approval: bool = False
+
+
+class SuperPipelineRequest(BaseModel):
+    script: str
+    title: str
+    voice: Optional[str] = None
+    burn_subtitles: bool = False
+    idea: Optional[dict[str, Any]] = None
+    # Compat con skills/super_pipeline.md
+    open_in_editor: bool = False
+    template: str = "dark_minimal"
+
+
+@router.post("/generate_subtitles")
+async def api_generate_subtitles(req: SubtitlesRequest):
+    try:
+        if req.audio_path:
+            from core.storage import has_allowed_ext, AUDIO_EXTS
+
+            if not has_allowed_ext(req.audio_path, AUDIO_EXTS):
+                raise HTTPException(status_code=400, detail="audio_path debe ser audio (.mp3/.wav/.m4a/.ogg/.flac)")
+        result = generate_subtitles(req.script, req.title, audio_path=req.audio_path)
+        entry = add_item(item_type="subtitles", title=req.title, content=result)
+        return {"success": True, **result, "library_id": entry["id"]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/generate_metadata")
+async def api_generate_metadata(req: MetadataRequest):
+    try:
+        meta = await generate_metadata(req.script, idea=req.idea, language=req.language)
+        entry = add_item(item_type="metadata", title=meta.get("title", "meta"), content=meta)
+        return {"success": True, "metadata": meta, "library_id": entry["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/generate_thumbnail")
+async def api_generate_thumbnail(req: ThumbnailRequest):
+    try:
+        path = create_thumbnail(req.title, output_name=req.output_name)
+        entry = add_item(item_type="thumbnail", title=req.title, content=str(path))
+        return {"success": True, "thumbnail_path": str(path), "library_id": entry["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/upload_video")
+async def api_upload_video(req: UploadRequest):
+    try:
+        from core.storage import has_allowed_ext, VIDEO_EXTS, IMAGE_EXTS
+
+        if not has_allowed_ext(req.video_path, VIDEO_EXTS):
+            raise HTTPException(status_code=400, detail="video_path debe ser video (.mp4/.mov/.mkv/.webm/.avi)")
+        if req.thumbnail_path and not has_allowed_ext(req.thumbnail_path, IMAGE_EXTS):
+            raise HTTPException(status_code=400, detail="thumbnail_path debe ser imagen (.jpg/.png/.webp)")
+        result = upload_video(
+            video_path=req.video_path, title=req.title, description=req.description,
+            tags=req.tags, privacy=req.privacy, thumbnail_path=req.thumbnail_path,
+            explicit_approval=req.explicit_approval,
+        )
+        add_item(item_type="upload", title=req.title, content=result)
+        return result
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+async def _run_super_pipeline(req: SuperPipelineRequest) -> dict:
+    """Full production pipeline: TTS -> subtitles -> video -> metadata -> thumbnail."""
+    tts = TTSProvider()
+    audio_path = await tts.generate(text=req.script, filename=req.title, voice=req.voice)
+    subs = generate_subtitles(req.script, req.title, audio_path=audio_path)
+    video_result = create_video_from_script_and_audio(
+        script=req.script, audio_path=audio_path, title=req.title, output_name=req.title,
+        srt_path=Path(subs["srt_path"]), burn_subs=req.burn_subtitles,
+        template=getattr(req, "template", "dark_minimal"),
     )
+    meta = await generate_metadata(req.script, idea=req.idea)
+    thumb = create_thumbnail(meta.get("title") or req.title, output_name=req.title)
+    entry = add_item(
+        item_type="full_project", title=meta.get("title") or req.title,
+        content={
+            "script": req.script, "audio_path": str(audio_path),
+            "video_path": video_result["video_path"], "srt_path": subs["srt_path"],
+            "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb), "metadata": meta,
+        },
+    )
+    out = {
+        "success": True, "audio_path": str(audio_path), "video_path": video_result["video_path"],
+        "srt_path": subs["srt_path"], "vtt_path": subs["vtt_path"], "thumbnail_path": str(thumb),
+        "metadata": meta, "library_id": entry["id"], "youtube_configured": is_youtube_configured(),
+        "editor_url": None, "editor_project_id": None, "editor_error": None,
+    }
+    # Bridge opcional al editor (skills/super_pipeline.md). No rompe el pipeline si falla.
+    if getattr(req, "open_in_editor", False):
+        try:
+            from modules.editor_bridge import send_to_editor
+
+            ed = await send_to_editor(
+                video_path=str(video_result["video_path"]),
+                media_paths=[str(video_result["video_path"])],
+                name=meta.get("title") or req.title,
+                auto_assemble=True,
+            )
+            out["editor_project_id"] = ed.get("projectId") or ed.get("project_id")
+            url = ed.get("editor_url")
+            if url and "?project=" in url and "?projectId=" not in url:
+                url = url.replace("?project=", "?projectId=")
+            out["editor_url"] = url
+        except Exception as e:
+            out["editor_error"] = str(e)[:500]
+    return out
+
+
+@router.post("/super_pipeline")
+async def api_super_pipeline(req: SuperPipelineRequest):
+    try:
+        return await _run_super_pipeline(req)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/super_pipeline_async")
+async def api_super_pipeline_async(req: SuperPipelineRequest):
+    """Non-blocking variant. Returns a job id; poll GET /api/jobs/{job_id}."""
+    job = submit_job("super_pipeline", lambda: asyncio.run(_run_super_pipeline(req)))
+    return {"success": True, "job_id": job["id"], "status": job["status"], "poll": f"/api/jobs/{job['id']}"}
+
+
+
+
+
+@router.get("/jobs")
+async def api_list_jobs(limit: int = 50):
+    return {"jobs": list_jobs(limit=limit)}
+
+
+@router.get("/jobs/{job_id}")
+async def api_get_job(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+class CinematicRequest(BaseModel):
+    script: str
+    title: str = "cinematic"
+    voice: Optional[str] = None
+    burn_subtitles: bool = False
+    style: Optional[str] = None
+
+
+@router.get("/cinematic/status")
+async def api_cinematic_status():
+    from providers.image import ImageProvider
+    from providers.video_gen import VideoGenProvider
+
+    img = ImageProvider()
+    vid = VideoGenProvider()
+    return {
+        "image_provider": getattr(img, "provider", "openai"),
+        "image_configured": img.is_configured(),
+        "video_provider": getattr(vid, "provider", "none"),
+        "video_configured": vid.is_configured(),
+    }
+
+
+@router.post("/cinematic_pipeline")
+async def api_cinematic_pipeline(req: CinematicRequest):
+    try:
+        from modules.cinematic import create_cinematic_video
+
+        result = await create_cinematic_video(
+            script=req.script, title=req.title, voice=req.voice,
+            burn_subs=req.burn_subtitles, style=req.style,
+        )
+        entry = add_item(item_type="cinematic", title=req.title, content=result)
+        return {"success": True, **result, "library_id": entry["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class OpenInEditorRequest(BaseModel):
+    video_path: Optional[str] = None
+    name: str = "From Gremlin"
+    auto_assemble: bool = True
+    crossfade: float = 0
+    media_paths: Optional[list[str]] = None
+
+
+@router.post("/open_in_editor")
+async def api_open_in_editor(req: OpenInEditorRequest):
+    try:
+        from modules.editor_bridge import send_to_editor
+        from core.storage import has_allowed_ext, VIDEO_EXTS, AUDIO_EXTS, IMAGE_EXTS
+
+        allowed = VIDEO_EXTS | AUDIO_EXTS | IMAGE_EXTS
+        if req.video_path and not has_allowed_ext(req.video_path, allowed):
+            raise HTTPException(status_code=400, detail="video_path debe ser media válida")
+        for p in req.media_paths or []:
+            if not has_allowed_ext(p, allowed):
+                raise HTTPException(status_code=400, detail=f"media_path inválido: {p}")
+
+        result = await send_to_editor(
+            video_path=req.video_path,
+            media_paths=req.media_paths,
+            name=req.name,
+            auto_assemble=req.auto_assemble,
+            crossfade=req.crossfade,
+        )
+        add_item(item_type="editor_link", title=req.name, content=result)
+        # Normaliza contrato skills/editor.md (editor_project_id + ?projectId=)
+        pid = result.get("projectId") or result.get("project_id")
+        url = result.get("editor_url", "")
+        if url and "?project=" in url and "?projectId=" not in url:
+            url = url.replace("?project=", "?projectId=")
+        return {
+            "success": True,
+            **result,
+            "editor_project_id": pid,
+            "editor_url": url,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Editor no disponible: {e}")
+
+
+@router.get("/agent/skills")
+async def api_agent_skills():
+    """Return skill pack for external agents (OpenClaw, Hermes, etc.)."""
+    root = Path(__file__).resolve().parent.parent
+    skills_dir = root / "skills"
+    prompts_dir = root / "prompts"
+    skills = {}
+    if skills_dir.exists():
+        for f in sorted(skills_dir.glob("*.md")):
+            skills[f.stem] = f.read_text(encoding="utf-8")
+    system_prompt = ""
+    sp = prompts_dir / "agent_system.md"
+    if sp.exists():
+        system_prompt = sp.read_text(encoding="utf-8")
+    return {
+        "name": "ContentGremlin",
+        "version": __version__,
+        "base_url": "http://localhost:8000",
+        "system_prompt": system_prompt,
+        "skills": skills,
+        "workflow": [
+            "GET /api/status",
+            "POST /api/analyze_channel",
+            "POST /api/generate_ideas",
+            "POST /api/write_script",
+            "POST /api/super_pipeline (blocking) or /api/super_pipeline_async (job)",
+            "GET /api/jobs/{job_id} (poll)",
+            "POST /api/upload_video (optional)",
+        ],
+    }
