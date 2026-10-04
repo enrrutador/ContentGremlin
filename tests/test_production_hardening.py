@@ -76,6 +76,36 @@ def test_qa_missing_file_not_publishable():
     assert "video_file_missing" in out["reasons"]
 
 
+def test_qa_gate_user_decides_by_default():
+    from modules.production_engine import _apply_qa_gate
+
+    failed_qa = {"ok": False, "publishable": False, "score": 0.65, "reasons": ["too_short"]}
+    prod = {"quality_bar": "publishable"}
+    out = _apply_qa_gate({"success": True}, failed_qa, prod)
+    assert out["success"] is True
+    assert out["publishable"] is False
+    assert "too_short" in out["message"]
+
+
+def test_qa_gate_strict_fails():
+    from modules.production_engine import _apply_qa_gate
+
+    failed_qa = {"ok": False, "publishable": False, "score": 0.65, "reasons": ["too_short"]}
+    prod = {"quality_bar": "publishable"}
+    out = _apply_qa_gate({"success": True}, failed_qa, prod, strict_qa=True)
+    assert out["success"] is False
+    assert out["publishable"] is False
+
+
+def test_qa_gate_passing_qa_untouched():
+    from modules.production_engine import _apply_qa_gate
+
+    ok_qa = {"ok": True, "publishable": True, "score": 0.95, "reasons": []}
+    out = _apply_qa_gate({"success": True}, ok_qa, {"quality_bar": "publishable"})
+    assert out["success"] is True and out["publishable"] is True
+    assert "message" not in out
+
+
 def test_produce_endpoint_validates_script():
     from fastapi.testclient import TestClient
     from main import app

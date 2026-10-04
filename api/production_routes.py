@@ -42,6 +42,7 @@ class ProduceRequest(BaseModel):
     voice: Optional[str] = None
     idea: Optional[dict[str, Any]] = None
     skip_qa: bool = False
+    strict_qa: bool = False
 
 
 class QARequest(BaseModel):
@@ -73,6 +74,7 @@ async def api_produce(req: ProduceRequest):
             voice=req.voice,
             idea=req.idea,
             skip_qa=req.skip_qa,
+            strict_qa=req.strict_qa,
         )
         entry = add_item(
             item_type="production",
@@ -103,6 +105,7 @@ async def api_produce_async(req: ProduceRequest):
                 voice=req.voice,
                 idea=req.idea,
                 skip_qa=req.skip_qa,
+                strict_qa=req.strict_qa,
             )
         )
 

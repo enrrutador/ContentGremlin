@@ -11,7 +11,9 @@ After an approved script, when the user wants B-roll timeline + subtitles + musi
 ## Rules
 
 1. Respect production profile (never hardcode niche/style).
-2. If `qa.ok` is false and `quality_bar` is `publishable`, do not upload; report `qa.reasons`.
+2. El sistema informa, el usuario decide: `success:true` entrega el video siempre;
+   mirá `publishable` + `qa.reasons` y **vos** decidís si se sube. Solo `strict_qa:true`
+   voltea `success` a false cuando no pasa la barra.
 3. Upload still requires permission gates.
 
 ## Request
@@ -21,7 +23,8 @@ After an approved script, when the user wants B-roll timeline + subtitles + musi
   "script": "...",
   "title": "...",
   "voice": null,
-  "skip_qa": false
+  "skip_qa": false,
+  "strict_qa": false
 }
 ```
 

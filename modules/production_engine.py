@@ -326,6 +326,31 @@ async def _assemble_timeline(
     return with_audio
 
 
+def _apply_qa_gate(
+    result: dict[str, Any],
+    qa: dict[str, Any],
+    prod: dict[str, Any],
+    *,
+    strict_qa: bool = False,
+) -> dict[str, Any]:
+    """El sistema informa, el usuario decide.
+
+    Por defecto el video siempre se entrega (success=True) con
+    publishable True/False + reasons como advisory. Solo con
+    strict_qa=True el gate voltea success a False.
+    """
+    result["qa"] = qa
+    result["publishable"] = bool(qa.get("publishable") or qa.get("ok"))
+    if prod.get("quality_bar") == "publishable" and not qa.get("ok"):
+        result["message"] = (
+            "Video listo, pero QA no alcanzó la barra publishable "
+            f"(decisión tuya publicarlo o no). Reasons: {', '.join(qa.get('reasons') or [])}"
+        )
+        if strict_qa:
+            result["success"] = False
+    return result
+
+
 async def produce(
     script: str,
     title: str,
@@ -333,6 +358,7 @@ async def produce(
     voice: Optional[str] = None,
     idea: Optional[dict] = None,
     skip_qa: bool = False,
+    strict_qa: bool = False,
 ) -> dict[str, Any]:
     """
     Full production pipeline driven by user production profile.
@@ -441,14 +467,7 @@ async def produce(
 
     if not skip_qa:
         qa = run_qa(video_path, audio_path=audio_path, script=script, prod=prod)
-        result["qa"] = qa
-        result["publishable"] = bool(qa.get("publishable") or qa.get("ok"))
-        if prod.get("quality_bar") == "publishable" and not qa.get("ok"):
-            result["success"] = False
-            result["message"] = (
-                "Production finished but QA did not pass publishable bar. "
-                f"Reasons: {', '.join(qa.get('reasons') or [])}"
-            )
+        _apply_qa_gate(result, qa, prod, strict_qa=strict_qa)
     else:
         result["publishable"] = None
 
